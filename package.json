@@ -1,0 +1,23 @@
+{
+  "name": "@codella/pi-packages",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Codella Pi package monorepo.",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "validate": "node scripts/validate.mjs",
+    "pack:dry-run": "npm pack --workspaces --dry-run",
+    "pack:theme": "npm pack -w @codella/pi-theme-cyberpunk --dry-run",
+    "pack:plan": "npm pack -w @codella/pi-plan-mode --dry-run",
+    "pack:mcp": "npm pack -w @codella/pi-mcp-support --dry-run"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent"
+  ],
+  "license": "MIT"
+}
