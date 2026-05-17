@@ -62,6 +62,39 @@ npm run pack:mcp
 
 Review tarball contents before publishing.
 
+## Local testing before publishing
+
+Test Pi packages locally before publishing.
+
+Load extensions directly for a quick test:
+
+```bash
+pi --no-extensions -e ./packages/pi-plan-mode
+pi --no-extensions -e ./packages/pi-mcp-support
+```
+
+Load a theme directly for a quick test:
+
+```bash
+pi --no-themes --theme ./packages/pi-theme-cyberpunk/themes/cyberpunk.json
+```
+
+For a more realistic local install, use project settings:
+
+```bash
+pi install ./packages/pi-plan-mode -l
+pi install ./packages/pi-mcp-support -l
+pi install ./packages/pi-theme-cyberpunk -l
+```
+
+Remove local test installs when done:
+
+```bash
+pi remove ./packages/pi-plan-mode -l
+pi remove ./packages/pi-mcp-support -l
+pi remove ./packages/pi-theme-cyberpunk -l
+```
+
 ## Publishing safety
 
 Never run `npm publish` without explicit user approval for the exact package(s) and version(s).
