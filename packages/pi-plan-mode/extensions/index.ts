@@ -13,7 +13,7 @@
 
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { StringEnum, type AssistantMessage, type TextContent } from "@earendil-works/pi-ai";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { extractTodoItems, isSafeCommand, markCompletedSteps, type TodoItem } from "./utils.js";
 
@@ -63,6 +63,113 @@ function isReadOnlyToolName(toolName: string): boolean {
 function formatPlan(todos: TodoItem[]): string {
 	if (todos.length === 0) return "No tracked plan steps.";
 	return todos.map((item) => `${item.step}. ${item.text}`).join("\n");
+}
+
+type PlanWidgetMode = "pending" | "executing";
+
+type StyledSegment = {
+	text: string;
+	width: number;
+};
+
+function clamp(value: number, min: number, max: number): number {
+	return Math.min(max, Math.max(min, value));
+}
+
+function truncatePlain(text: string, width: number): string {
+	if (width <= 0) return "";
+	if (text.length <= width) return text;
+	if (width === 1) return "…";
+	return `${text.slice(0, width - 1)}…`;
+}
+
+function segment(text: string, width?: number): StyledSegment {
+	return { text, width: width ?? text.length };
+}
+
+function renderPlanTodoWidget(theme: Theme, width: number, mode: PlanWidgetMode, todos: TodoItem[]): string[] {
+	const total = todos.length;
+	const completed = todos.filter((todo) => todo.completed).length;
+	const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+	const accent = mode === "pending" ? "warning" : "accent";
+	const title = mode === "pending" ? " PLAN REVIEW " : " PLAN TRACKER ";
+
+	if (width < 24) {
+		const label = mode === "pending" ? `${total} steps pending` : `${completed}/${total} done`;
+		return [theme.fg(accent, theme.bold(truncatePlain(label, width)))];
+	}
+
+	const rowWidth = Math.max(24, width);
+	const contentWidth = rowWidth - 4;
+	const border = (value: string): string => theme.fg("borderMuted", value);
+	const row = (parts: StyledSegment[]): string => {
+		const used = parts.reduce((sum, part) => sum + part.width, 0);
+		return `${border("│ ")}${parts.map((part) => part.text).join("")}${" ".repeat(Math.max(0, contentWidth - used))}${border(" │")}`;
+	};
+	const fullRow = (plain: string, styled = plain): string => row([segment(styled, plain.length)]);
+
+	const clippedTitle = truncatePlain(title, rowWidth - 2);
+	const topFill = "─".repeat(Math.max(0, rowWidth - 2 - clippedTitle.length));
+	const lines = [`${border("╭")}${theme.fg(accent, theme.bold(clippedTitle))}${border(`${topFill}╮`)}`];
+
+	if (mode === "pending") {
+		const summary = truncatePlain(`${total} proposed steps • approval required before tools unlock`, contentWidth);
+		lines.push(fullRow(summary, theme.fg("warning", summary)));
+	} else {
+		const label = truncatePlain(`${completed}/${total} complete • ${percent}%`, Math.max(8, Math.floor(contentWidth * 0.42)));
+		const barWidth = clamp(contentWidth - label.length - 1, 6, 28);
+		const filled = total > 0 ? Math.round((barWidth * completed) / total) : 0;
+		const bar = theme.fg("success", "█".repeat(filled)) + theme.fg("borderMuted", "░".repeat(barWidth - filled));
+		lines.push(
+			row([
+				segment(bar, barWidth),
+				segment(" "),
+				segment(theme.fg(completed === total ? "success" : "muted", label), label.length),
+			]),
+		);
+	}
+
+	lines.push(`${border("├")}${border("─".repeat(rowWidth - 2))}${border("┤")}`);
+
+	const stepDigits = Math.max(2, String(total).length);
+	const nextOpenStep = todos.find((todo) => !todo.completed)?.step;
+	for (const item of todos) {
+		const active = mode === "executing" && item.step === nextOpenStep;
+		const marker = item.completed ? "✓" : active ? "▶" : "○";
+		const markerStyle = item.completed ? "success" : active ? "accent" : mode === "pending" ? "warning" : "dim";
+		const step = `#${String(item.step).padStart(stepDigits, "0")}`;
+		const prefixWidth = marker.length + 1 + step.length + 1;
+		const text = truncatePlain(item.text, Math.max(0, contentWidth - prefixWidth));
+		const itemText = item.completed
+			? theme.fg("muted", theme.strikethrough(text))
+			: active
+				? theme.fg("accent", theme.bold(text))
+				: theme.fg(mode === "pending" ? "text" : "muted", text);
+
+		lines.push(
+			row([
+				segment(theme.fg(markerStyle, marker), marker.length),
+				segment(" "),
+				segment(theme.fg(item.completed ? "muted" : "accent", step), step.length),
+				segment(" "),
+				segment(itemText, text.length),
+			]),
+		);
+	}
+
+	const footer = truncatePlain(
+		mode === "pending"
+			? "approve to execute • request revisions to keep planning"
+			: nextOpenStep
+				? `next up: step ${nextOpenStep} • plan_progress keeps this live`
+				: "all steps complete",
+		contentWidth,
+	);
+	lines.push(`${border("├")}${border("─".repeat(rowWidth - 2))}${border("┤")}`);
+	lines.push(fullRow(footer, theme.fg("dim", footer)));
+	lines.push(`${border("╰")}${border("─".repeat(rowWidth - 2))}${border("╯")}`);
+
+	return lines;
 }
 
 export default function planModeExtension(pi: ExtensionAPI): void {
@@ -139,29 +246,24 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		if (!ctx.hasUI) return;
 
 		if (executionMode && todoItems.length > 0) {
-			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("accent", "📋 executing"));
+			const completed = todoItems.filter((todo) => todo.completed).length;
+			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("accent", `▰ ${completed}/${todoItems.length} plan`));
 		} else if (planModeEnabled && approvalState === "pending" && todoItems.length > 0) {
-			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("warning", "⏸ approve"));
+			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("warning", `◇ review ${todoItems.length}`));
 		} else if (planModeEnabled) {
-			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("warning", "⏸ plan"));
+			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("warning", "◇ plan"));
 		} else {
 			ctx.ui.setStatus("plan-mode", undefined);
 		}
 
 		if ((executionMode || approvalState === "pending") && todoItems.length > 0) {
-			const prefix = approvalState === "pending" && !executionMode ? [ctx.ui.theme.fg("warning", "Pending approval:")] : [];
-			ctx.ui.setWidget(
-				"plan-todos",
-				[
-					...prefix,
-					...todoItems.map((item) => {
-						if (item.completed) {
-							return ctx.ui.theme.fg("success", "☑ ") + ctx.ui.theme.fg("muted", ctx.ui.theme.strikethrough(item.text));
-						}
-						return `${ctx.ui.theme.fg("muted", "☐ ")}${item.text}`;
-					}),
-				],
-			);
+			const widgetMode: PlanWidgetMode = executionMode ? "executing" : "pending";
+			ctx.ui.setWidget("plan-todos", (_tui: unknown, theme: Theme) => ({
+				render(width: number): string[] {
+					return renderPlanTodoWidget(theme, width, widgetMode, todoItems);
+				},
+				invalidate(): void {},
+			}));
 		} else {
 			ctx.ui.setWidget("plan-todos", undefined);
 		}
