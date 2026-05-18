@@ -17,6 +17,8 @@ pi install npm:@codella/pi-plan-mode
 - `/plan off` - Disable plan mode and restore previous tools.
 - `/plan approve` or `/plan execute` - Approve the pending plan and execute it.
 - `/plan reject` - Reject the pending plan and stay in plan mode.
+- `/plan done <step|all>` - Manually mark tracked step(s) complete.
+- `/plan undone <step|all>` - Manually mark tracked step(s) incomplete.
 - `/plan status` - Show mode, approval state, active tools, and tracked steps.
 - `/plan clear` - Clear tracked steps and approval state.
 - `/todos` - Show current plan progress.
@@ -46,7 +48,8 @@ After approval:
 
 - Previous tools are restored.
 - The assistant executes only the approved plan.
-- Progress is tracked with `[DONE:n]` markers.
+- A temporary `plan_progress` tool is enabled so the assistant can update the task list immediately after each completed step.
+- `[DONE:n]` markers are still recognized as a fallback.
 
 ## License
 

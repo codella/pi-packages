@@ -18,8 +18,9 @@
  */
 
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { AssistantMessage, TextContent } from "@earendil-works/pi-ai";
+import { StringEnum, type AssistantMessage, type TextContent } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Type } from "typebox";
 import { extractTodoItems, isSafeCommand, markCompletedSteps, type TodoItem } from "./utils.js";
 
 const CORE_PLAN_TOOLS = ["read", "bash", "grep", "find", "ls"];
@@ -32,6 +33,8 @@ const READ_ONLY_TOOL_NAMES = new Set([
 ]);
 const READ_ONLY_TOOL_PREFIXES = ["context7_"];
 const DEFAULT_RESTORE_TOOLS = ["read", "bash", "grep", "find", "ls", "edit", "write"];
+const PLAN_PROGRESS_TOOL = "plan_progress";
+const PLAN_PROGRESS_ACTIONS = ["complete", "uncomplete", "complete_all", "reset"] as const;
 
 type ApprovalState = "none" | "pending" | "approved";
 
@@ -96,11 +99,26 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 	function restoreTools(): void {
 		const available = availableToolNames();
 		const restore = (toolsBeforePlan && toolsBeforePlan.length > 0 ? toolsBeforePlan : DEFAULT_RESTORE_TOOLS).filter(
-			(name) => available.has(name),
+			(name) => available.has(name) && name !== PLAN_PROGRESS_TOOL,
 		);
 
 		if (restore.length > 0) pi.setActiveTools(unique(restore));
 		toolsBeforePlan = undefined;
+	}
+
+	function activateProgressTool(): void {
+		if (!availableToolNames().has(PLAN_PROGRESS_TOOL)) return;
+		pi.setActiveTools(unique([...pi.getActiveTools(), PLAN_PROGRESS_TOOL]));
+	}
+
+	function deactivateProgressTool(): void {
+		const activeTools = pi.getActiveTools();
+		if (!activeTools.includes(PLAN_PROGRESS_TOOL)) return;
+
+		const available = availableToolNames();
+		const withoutProgressTool = activeTools.filter((name) => name !== PLAN_PROGRESS_TOOL && available.has(name));
+		const fallbackTools = DEFAULT_RESTORE_TOOLS.filter((name) => available.has(name));
+		pi.setActiveTools(unique(withoutProgressTool.length > 0 ? withoutProgressTool : fallbackTools));
 	}
 
 	function applyPlanTools(ctx?: ExtensionContext): void {
@@ -127,10 +145,9 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		if (!ctx.hasUI) return;
 
 		if (executionMode && todoItems.length > 0) {
-			const completed = todoItems.filter((todo) => todo.completed).length;
-			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("accent", `📋 ${completed}/${todoItems.length}`));
+			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("accent", "📋 executing"));
 		} else if (planModeEnabled && approvalState === "pending" && todoItems.length > 0) {
-			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("warning", `⏸ approve ${todoItems.length}`));
+			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("warning", "⏸ approve"));
 		} else if (planModeEnabled) {
 			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("warning", "⏸ plan"));
 		} else {
@@ -176,6 +193,108 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		approvedPlanText = undefined;
 	}
 
+	function uniqueStepNumbers(values: Array<number | undefined>): number[] {
+		return [...new Set(values.filter((value): value is number => Number.isInteger(value) && value > 0))];
+	}
+
+	function setTodoCompletion(steps: number[], completed: boolean): number {
+		let changed = 0;
+		const stepSet = new Set(steps);
+		for (const item of todoItems) {
+			if (!stepSet.has(item.step) || item.completed === completed) continue;
+			item.completed = completed;
+			changed++;
+		}
+		return changed;
+	}
+
+	function completionSummary(): string {
+		const completed = todoItems.filter((todo) => todo.completed).length;
+		return `${completed}/${todoItems.length} complete`;
+	}
+
+	function parseStepList(input: string): number[] {
+		if (input.trim() === "all") return todoItems.map((todo) => todo.step);
+		return uniqueStepNumbers(input.split(/[\s,]+/).map((value) => Number(value)));
+	}
+
+	function markStepsFromCommand(ctx: ExtensionContext, input: string, completed: boolean): void {
+		if (todoItems.length === 0) {
+			ctx.ui.notify("No tracked plan steps to update.", "warning");
+			return;
+		}
+
+		const steps = parseStepList(input);
+		if (steps.length === 0) {
+			ctx.ui.notify("Usage: /plan done <step|all> or /plan undone <step|all>", "warning");
+			return;
+		}
+
+		const changed = setTodoCompletion(steps, completed);
+		updateStatus(ctx);
+		persistState();
+		ctx.ui.notify(
+			`${completed ? "Marked complete" : "Marked incomplete"}: ${steps.join(", ")} (${completionSummary()}).${changed === 0 ? " No visible changes." : ""}`,
+			"info",
+		);
+	}
+
+	pi.registerTool({
+		name: PLAN_PROGRESS_TOOL,
+		label: "Plan Progress",
+		description: "Update the visible task list while executing a user-approved plan.",
+		promptSnippet: "Mark approved plan steps complete or incomplete during plan execution",
+		promptGuidelines: [
+			"Use plan_progress while executing an approved plan to update the visible task list immediately after each step is truly complete.",
+			"Do not call plan_progress before the step has actually been implemented and verified.",
+		],
+		parameters: Type.Object({
+			action: StringEnum(PLAN_PROGRESS_ACTIONS),
+			step: Type.Optional(Type.Integer({ description: "Single plan step number to update." })),
+			steps: Type.Optional(Type.Array(Type.Integer(), { description: "Multiple plan step numbers to update." })),
+			note: Type.Optional(Type.String({ description: "Optional short note about the progress update." })),
+		}),
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+			if (!executionMode || approvalState !== "approved" || todoItems.length === 0) {
+				return {
+					content: [{ type: "text", text: "No approved plan is currently executing; plan progress was not changed." }],
+					details: { ignored: true, executing: executionMode, approvalState },
+				};
+			}
+
+			let changed = 0;
+			if (params.action === "reset") {
+				changed = todoItems.filter((todo) => todo.completed).length;
+				for (const item of todoItems) item.completed = false;
+			} else if (params.action === "complete_all") {
+				changed = todoItems.filter((todo) => !todo.completed).length;
+				for (const item of todoItems) item.completed = true;
+			} else {
+				const requestedSteps = uniqueStepNumbers([params.step, ...(params.steps ?? [])]);
+				if (requestedSteps.length === 0) {
+					return {
+						content: [{ type: "text", text: "No valid plan step number was provided; plan progress was not changed." }],
+						details: { ignored: true, todos: todoItems },
+					};
+				}
+				changed = setTodoCompletion(requestedSteps, params.action === "complete");
+			}
+
+			updateStatus(ctx);
+			persistState();
+
+			return {
+				content: [
+					{
+						type: "text",
+						text: `Plan progress updated (${completionSummary()}).${changed === 0 ? " No visible changes." : ""}`,
+					},
+				],
+				details: { changed, todos: todoItems, note: params.note },
+			};
+		},
+	});
+
 	function enablePlanMode(ctx: ExtensionContext): void {
 		if (!planModeEnabled && !executionMode) {
 			toolsBeforePlan = pi.getActiveTools();
@@ -198,6 +317,7 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		approvedPlanText = undefined;
 		if (clearTodos) todoItems = [];
 		restoreTools();
+		deactivateProgressTool();
 		updateStatus(ctx);
 		persistState();
 		ctx.ui.notify("Plan mode disabled. Previous tools restored.", "info");
@@ -212,6 +332,7 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		planModeEnabled = false;
 		executionMode = todoItems.length > 0;
 		restoreTools();
+		if (executionMode) activateProgressTool();
 		updateStatus(ctx);
 		persistState();
 
@@ -293,7 +414,7 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 	}
 
 	pi.registerCommand("plan", {
-		description: "Approval-gated plan mode. Args: on, off, approve, execute, reject, status, clear",
+		description: "Approval-gated plan mode. Args: on, off, approve, execute, done, undone, reject, status, clear",
 		handler: async (args, ctx) => {
 			const action = args.trim().toLowerCase();
 
@@ -325,6 +446,17 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 				return;
 			}
 
+			const [verb, ...stepArgs] = action.split(/\s+/);
+			if (["done", "complete"].includes(verb)) {
+				markStepsFromCommand(ctx, stepArgs.join(" "), true);
+				return;
+			}
+
+			if (["undone", "incomplete", "uncomplete"].includes(verb)) {
+				markStepsFromCommand(ctx, stepArgs.join(" "), false);
+				return;
+			}
+
 			if (action === "reject") {
 				rejectPendingPlan(ctx);
 				return;
@@ -337,13 +469,14 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 
 			if (action === "clear") {
 				clearPlanState();
+				deactivateProgressTool();
 				updateStatus(ctx);
 				persistState();
 				ctx.ui.notify("Cleared tracked plan steps and approval state.", "info");
 				return;
 			}
 
-			ctx.ui.notify("Usage: /plan [on|off|approve|execute|reject|status|clear]", "warning");
+			ctx.ui.notify("Usage: /plan [on|off|approve|execute|done <step|all>|undone <step|all>|reject|status|clear]", "warning");
 		},
 	});
 
@@ -392,7 +525,7 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		if (executionMode && todoItems.length > 0 && approvalState === "approved") {
 			const remaining = todoItems.filter((todo) => !todo.completed).map((todo) => `${todo.step}. ${todo.text}`).join("\n");
 			return {
-				systemPrompt: `${event.systemPrompt}\n\n[EXECUTING USER-APPROVED PLAN]\nThe user explicitly approved this plan. Full tool access has been restored. Execute the remaining steps in order and do not expand scope beyond the approved plan without asking.\n\nApproved plan:\n${approvedPlanText ?? formatPlan(todoItems)}\n\nRemaining steps:\n${remaining}\n\nAfter fully completing and verifying step n, include [DONE:n] in your assistant response. Do not mark a step done before it is actually complete.`,
+				systemPrompt: `${event.systemPrompt}\n\n[EXECUTING USER-APPROVED PLAN]\nThe user explicitly approved this plan. Full tool access has been restored. Execute the remaining steps in order and do not expand scope beyond the approved plan without asking.\n\nApproved plan:\n${approvedPlanText ?? formatPlan(todoItems)}\n\nRemaining steps:\n${remaining}\n\nProgress tracking:\n- After fully completing and verifying step n, call the plan_progress tool with action \"complete\" and step n so the visible task list updates immediately.\n- Do not mark a step complete before it is actually done.\n- [DONE:n] text markers are only a fallback if plan_progress is unavailable.`,
 			};
 		}
 	});
@@ -418,6 +551,7 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 					{ triggerTurn: false },
 				);
 				clearPlanState();
+				deactivateProgressTool();
 				updateStatus(ctx);
 				persistState();
 			}
@@ -524,7 +658,13 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 			markCompletedSteps(textSinceExecution, todoItems);
 		}
 
-		if (planModeEnabled) applyPlanTools(ctx);
+		if (planModeEnabled) {
+			applyPlanTools(ctx);
+		} else if (executionMode && approvalState === "approved" && todoItems.length > 0) {
+			activateProgressTool();
+		} else {
+			deactivateProgressTool();
+		}
 		updateStatus(ctx);
 	});
 }
