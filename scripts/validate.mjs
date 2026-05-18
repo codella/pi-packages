@@ -80,6 +80,7 @@ function validatePackage(dir, expectedName, expectedPiKey) {
 }
 
 validatePackage("pi-theme-cyberpunk", "@codella/pi-theme-cyberpunk", "themes");
+validatePackage("pi-theme-candy", "@codella/pi-theme-candy", "themes");
 validatePackage("pi-plan-mode", "@codella/pi-plan-mode", "extensions");
 const mcpPkg = validatePackage("pi-mcp-support", "@codella/pi-mcp-support", "extensions");
 assert(mcpPkg.dependencies?.["@modelcontextprotocol/sdk"], "pi-mcp-support: missing @modelcontextprotocol/sdk dependency");
@@ -93,26 +94,33 @@ for (const path of [
   assert(existsSync(join(root, path)), `missing ${path}`);
 }
 
-const theme = readJson(join(root, "packages/pi-theme-cyberpunk/themes/cyberpunk.json"));
-assert(theme.name === "cyberpunk", `theme name must be cyberpunk, got ${theme.name}`);
-const colorKeys = Object.keys(theme.colors ?? {});
-const missing = requiredThemeTokens.filter((key) => !colorKeys.includes(key));
-const extra = colorKeys.filter((key) => !requiredThemeTokens.includes(key));
-assert(missing.length === 0, `theme missing tokens: ${missing.join(", ")}`);
-assert(extra.length === 0, `theme has extra tokens: ${extra.join(", ")}`);
-
-const vars = new Set(Object.keys(theme.vars ?? {}));
 const hex = /^#[0-9a-fA-F]{6}$/;
-for (const [section, values] of Object.entries({ colors: theme.colors, export: theme.export ?? {} })) {
-  for (const [key, value] of Object.entries(values)) {
-    if (typeof value === "number") {
-      assert(Number.isInteger(value) && value >= 0 && value <= 255, `${section}.${key}: invalid 256-color value`);
-    } else if (typeof value === "string") {
-      assert(value === "" || hex.test(value) || vars.has(value), `${section}.${key}: invalid color/reference ${value}`);
-    } else {
-      throw new Error(`${section}.${key}: invalid color value type`);
+
+function validateThemeFile(path, expectedName) {
+  const theme = readJson(join(root, path));
+  assert(theme.name === expectedName, `${path}: theme name must be ${expectedName}, got ${theme.name}`);
+
+  const colorKeys = Object.keys(theme.colors ?? {});
+  const missing = requiredThemeTokens.filter((key) => !colorKeys.includes(key));
+  const extra = colorKeys.filter((key) => !requiredThemeTokens.includes(key));
+  assert(missing.length === 0, `${path}: theme missing tokens: ${missing.join(", ")}`);
+  assert(extra.length === 0, `${path}: theme has extra tokens: ${extra.join(", ")}`);
+
+  const vars = new Set(Object.keys(theme.vars ?? {}));
+  for (const [section, values] of Object.entries({ colors: theme.colors ?? {}, export: theme.export ?? {} })) {
+    for (const [key, value] of Object.entries(values)) {
+      if (typeof value === "number") {
+        assert(Number.isInteger(value) && value >= 0 && value <= 255, `${path}: ${section}.${key}: invalid 256-color value`);
+      } else if (typeof value === "string") {
+        assert(value === "" || hex.test(value) || vars.has(value), `${path}: ${section}.${key}: invalid color/reference ${value}`);
+      } else {
+        throw new Error(`${path}: ${section}.${key}: invalid color value type`);
+      }
     }
   }
 }
+
+validateThemeFile("packages/pi-theme-cyberpunk/themes/cyberpunk.json", "cyberpunk");
+validateThemeFile("packages/pi-theme-candy/themes/candy.json", "candy");
 
 console.log("Validation OK");

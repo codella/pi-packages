@@ -1,0 +1,37 @@
+{
+  "name": "@codella/pi-theme-candy",
+  "version": "0.1.0",
+  "description": "Dark pastel candy theme for Pi.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "pi-theme",
+    "theme",
+    "candy"
+  ],
+  "files": [
+    "themes/",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codella/pi-packages.git",
+    "directory": "packages/pi-theme-candy"
+  },
+  "bugs": {
+    "url": "https://github.com/codella/pi-packages/issues"
+  },
+  "homepage": "https://github.com/codella/pi-packages/tree/main/packages/pi-theme-candy",
+  "pi": {
+    "themes": [
+      "./themes"
+    ]
+  }
+}
