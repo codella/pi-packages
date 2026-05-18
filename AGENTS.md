@@ -10,6 +10,7 @@ This is a Pi package monorepo for packages published under the `@codella` npm sc
 
 - Themes use `pi-theme-*` names:
   - `@codella/pi-theme-cyberpunk`
+  - `@codella/pi-theme-candy`
 - Extensions use `pi-*` names without an extra `pi-extension-*` prefix:
   - `@codella/pi-plan-mode`
   - `@codella/pi-mcp-support`
@@ -19,6 +20,8 @@ This is a Pi package monorepo for packages published under the `@codella` npm sc
 ```text
 packages/
   pi-theme-cyberpunk/
+    themes/
+  pi-theme-candy/
     themes/
   pi-plan-mode/
     extensions/
@@ -56,6 +59,7 @@ Or dry-run individual packages:
 
 ```bash
 npm run pack:theme
+npm run pack:candy
 npm run pack:plan
 npm run pack:mcp
 ```
@@ -77,6 +81,7 @@ Load a theme directly for a quick test:
 
 ```bash
 pi --no-themes --theme ./packages/pi-theme-cyberpunk/themes/cyberpunk.json
+pi --no-themes --theme ./packages/pi-theme-candy/themes/candy.json
 ```
 
 For a more realistic local install, use project settings:
@@ -85,6 +90,7 @@ For a more realistic local install, use project settings:
 pi install ./packages/pi-plan-mode -l
 pi install ./packages/pi-mcp-support -l
 pi install ./packages/pi-theme-cyberpunk -l
+pi install ./packages/pi-theme-candy -l
 ```
 
 Remove local test installs when done:
@@ -93,6 +99,7 @@ Remove local test installs when done:
 pi remove ./packages/pi-plan-mode -l
 pi remove ./packages/pi-mcp-support -l
 pi remove ./packages/pi-theme-cyberpunk -l
+pi remove ./packages/pi-theme-candy -l
 ```
 
 ## Publishing safety
