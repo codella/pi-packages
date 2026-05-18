@@ -6,12 +6,6 @@
  * Commands:
  * - /plan              toggle plan mode
  * - /plan on|off       explicitly enable/disable
- * - /plan approve      approve the pending plan and execute it
- * - /plan execute      same as approve when a pending plan exists
- * - /plan reject       reject the pending plan and stay in plan mode
- * - /plan status       show mode, approval state, and tracked steps
- * - /plan clear        clear tracked steps and approval state
- * - /todos             show current plan progress
  *
  * Shortcut:
  * - Ctrl+Alt+P         toggle plan mode
@@ -173,11 +167,6 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		}
 	}
 
-	function summarizeTodos(): string {
-		if (todoItems.length === 0) return "No tracked plan steps.";
-		return todoItems.map((item) => `${item.step}. ${item.completed ? "✓" : "○"} ${item.text}`).join("\n");
-	}
-
 	function setPendingPlan(todos: TodoItem[], ctx?: ExtensionContext): void {
 		todoItems = todos;
 		approvalState = "pending";
@@ -211,32 +200,6 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 	function completionSummary(): string {
 		const completed = todoItems.filter((todo) => todo.completed).length;
 		return `${completed}/${todoItems.length} complete`;
-	}
-
-	function parseStepList(input: string): number[] {
-		if (input.trim() === "all") return todoItems.map((todo) => todo.step);
-		return uniqueStepNumbers(input.split(/[\s,]+/).map((value) => Number(value)));
-	}
-
-	function markStepsFromCommand(ctx: ExtensionContext, input: string, completed: boolean): void {
-		if (todoItems.length === 0) {
-			ctx.ui.notify("No tracked plan steps to update.", "warning");
-			return;
-		}
-
-		const steps = parseStepList(input);
-		if (steps.length === 0) {
-			ctx.ui.notify("Usage: /plan done <step|all> or /plan undone <step|all>", "warning");
-			return;
-		}
-
-		const changed = setTodoCompletion(steps, completed);
-		updateStatus(ctx);
-		persistState();
-		ctx.ui.notify(
-			`${completed ? "Marked complete" : "Marked incomplete"}: ${steps.join(", ")} (${completionSummary()}).${changed === 0 ? " No visible changes." : ""}`,
-			"info",
-		);
 	}
 
 	pi.registerTool({
@@ -404,85 +367,29 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		);
 	}
 
-	function showStatus(ctx: ExtensionContext): void {
-		const mode = executionMode ? "executing approved plan" : planModeEnabled ? "planning/read-only" : "off";
-		const activeTools = pi.getActiveTools().join(", ");
-		ctx.ui.notify(
-			`Plan mode: ${mode}\nApproval: ${approvalState}\nActive tools: ${activeTools}\n\n${summarizeTodos()}`,
-			"info",
-		);
-	}
-
 	pi.registerCommand("plan", {
-		description: "Approval-gated plan mode. Args: on, off, approve, execute, done, undone, reject, status, clear",
+		description: "Toggle approval-gated plan mode. Args: on, off",
 		handler: async (args, ctx) => {
 			const action = args.trim().toLowerCase();
 
-			if (action === "" || action === "toggle") {
+			if (action === "") {
 				if (planModeEnabled) disablePlanMode(ctx);
 				else enablePlanMode(ctx);
 				return;
 			}
 
-			if (["on", "enable", "start"].includes(action)) {
+			if (action === "on") {
 				enablePlanMode(ctx);
 				return;
 			}
 
-			if (["off", "disable", "stop"].includes(action)) {
+			if (action === "off") {
 				disablePlanMode(ctx);
 				return;
 			}
 
-			if (["approve", "approved", "execute", "run"].includes(action)) {
-				if (approvalState === "pending" && ctx.hasUI) {
-					const ok = await ctx.ui.confirm("Approve and execute this plan?", formatPlan(todoItems));
-					if (!ok) {
-						ctx.ui.notify("Plan execution blocked: approval was not granted.", "warning");
-						return;
-					}
-				}
-				await approveAndExecute(ctx);
-				return;
-			}
-
-			const [verb, ...stepArgs] = action.split(/\s+/);
-			if (["done", "complete"].includes(verb)) {
-				markStepsFromCommand(ctx, stepArgs.join(" "), true);
-				return;
-			}
-
-			if (["undone", "incomplete", "uncomplete"].includes(verb)) {
-				markStepsFromCommand(ctx, stepArgs.join(" "), false);
-				return;
-			}
-
-			if (action === "reject") {
-				rejectPendingPlan(ctx);
-				return;
-			}
-
-			if (action === "status") {
-				showStatus(ctx);
-				return;
-			}
-
-			if (action === "clear") {
-				clearPlanState();
-				deactivateProgressTool();
-				updateStatus(ctx);
-				persistState();
-				ctx.ui.notify("Cleared tracked plan steps and approval state.", "info");
-				return;
-			}
-
-			ctx.ui.notify("Usage: /plan [on|off|approve|execute|done <step|all>|undone <step|all>|reject|status|clear]", "warning");
+			ctx.ui.notify("Usage: /plan [on|off]", "warning");
 		},
-	});
-
-	pi.registerCommand("todos", {
-		description: "Show current plan progress",
-		handler: async (_args, ctx) => showStatus(ctx),
 	});
 
 	pi.registerShortcut("ctrl+alt+p", {

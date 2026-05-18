@@ -15,13 +15,6 @@ pi install npm:@codella/pi-plan-mode
 - `/plan` - Toggle plan mode.
 - `/plan on` - Enable read-only plan mode.
 - `/plan off` - Disable plan mode and restore previous tools.
-- `/plan approve` or `/plan execute` - Approve the pending plan and execute it.
-- `/plan reject` - Reject the pending plan and stay in plan mode.
-- `/plan done <step|all>` - Manually mark tracked step(s) complete.
-- `/plan undone <step|all>` - Manually mark tracked step(s) incomplete.
-- `/plan status` - Show mode, approval state, active tools, and tracked steps.
-- `/plan clear` - Clear tracked steps and approval state.
-- `/todos` - Show current plan progress.
 
 ## Shortcut
 
