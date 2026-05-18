@@ -46,6 +46,10 @@ Every publishable package must:
 - Runtime dependencies needed by an extension must be in `dependencies`.
 - Do not rely on root `devDependencies` at Pi runtime.
 
+## Commit preparation
+
+Before making any commit, consider whether the change also requires updating `AGENTS.md`. If it does, include the `AGENTS.md` update in the same atomic commit as the related change.
+
 ## Validation
 
 Before considering changes complete, run:
