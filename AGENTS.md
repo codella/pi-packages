@@ -48,7 +48,7 @@ Every publishable package must:
 
 ## Commit preparation
 
-Before making any commit, consider whether the change also requires updating `AGENTS.md`. If it does, include the `AGENTS.md` update in the same atomic commit as the related change.
+Before making any commit, consider whether the change also requires updating `AGENTS.md` and any relevant `README.md` files. If it does, include those documentation updates in the same atomic commit as the related change.
 
 ## Validation
 

@@ -7,6 +7,7 @@ A monorepo of Pi packages published under the `@codella` npm scope.
 | Package | Type | Description |
 | --- | --- | --- |
 | `@codella/pi-theme-cyberpunk` | Theme | Neon cyberpunk TUI theme for Pi. |
+| `@codella/pi-theme-candy` | Theme | Dark pastel candy TUI theme for Pi. |
 | `@codella/pi-plan-mode` | Extension | Approval-gated read-only plan mode for Pi. |
 | `@codella/pi-mcp-support` | Extension | Generic Model Context Protocol (MCP) support for Pi. |
 
@@ -16,15 +17,22 @@ Install packages individually:
 
 ```bash
 pi install npm:@codella/pi-theme-cyberpunk
+pi install npm:@codella/pi-theme-candy
 pi install npm:@codella/pi-plan-mode
 pi install npm:@codella/pi-mcp-support
 ```
 
-After installing the theme, select it from `/settings` or set:
+After installing a theme, select it from `/settings` or set one of the theme names in Pi settings:
 
 ```json
 {
   "theme": "cyberpunk"
+}
+```
+
+```json
+{
+  "theme": "candy"
 }
 ```
 
@@ -74,6 +82,7 @@ Or one package at a time:
 
 ```bash
 npm run pack:theme
+npm run pack:candy
 npm run pack:plan
 npm run pack:mcp
 ```
@@ -84,6 +93,7 @@ Publish one package at a time from this workspace after reviewing `npm pack --dr
 
 ```bash
 npm publish -w @codella/pi-theme-cyberpunk --access public
+npm publish -w @codella/pi-theme-candy --access public
 npm publish -w @codella/pi-plan-mode --access public
 npm publish -w @codella/pi-mcp-support --access public
 ```
