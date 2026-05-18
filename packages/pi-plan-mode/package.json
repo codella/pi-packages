@@ -1,6 +1,6 @@
 {
   "name": "@codella/pi-plan-mode",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Approval-gated read-only plan mode extension for Pi.",
   "type": "module",
   "license": "MIT",

@@ -1,6 +1,6 @@
 {
   "name": "@codella/pi-mcp-support",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Generic Model Context Protocol support extension for Pi.",
   "type": "module",
   "license": "MIT",
