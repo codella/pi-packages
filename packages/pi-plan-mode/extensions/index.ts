@@ -41,6 +41,18 @@ type PlanState = {
 	toolsBeforePlan?: string[];
 };
 
+type PlanMessage = {
+	customType: string;
+	content: string;
+	display: boolean;
+	details?: unknown;
+};
+
+type SendMessageOptions = {
+	triggerTurn?: boolean;
+	deliverAs?: "steer" | "followUp" | "nextTurn";
+};
+
 function isAssistantMessage(message: AgentMessage | undefined): message is AssistantMessage {
 	return message?.role === "assistant" && Array.isArray((message as AssistantMessage).content);
 }
@@ -81,6 +93,34 @@ function truncatePlain(text: string, width: number): string {
 	if (text.length <= width) return text;
 	if (width === 1) return "…";
 	return `${text.slice(0, width - 1)}…`;
+}
+
+function appendEllipsis(text: string, width: number): string {
+	if (width <= 0) return "";
+	if (width === 1) return "…";
+	if (text.length >= width) return `${text.slice(0, width - 1)}…`;
+	return `${text}…`;
+}
+
+function wrapPlain(text: string, width: number, maxLines: number): string[] {
+	if (width <= 0 || maxLines <= 0) return [];
+
+	let remaining = text.replace(/\s+/g, " ").trim();
+	if (remaining.length === 0) return [""];
+
+	const lines: string[] = [];
+	while (remaining.length > width && lines.length < maxLines) {
+		let splitAt = remaining.lastIndexOf(" ", width + 1);
+		if (splitAt <= 0) splitAt = width;
+
+		lines.push(remaining.slice(0, splitAt).trimEnd());
+		remaining = remaining.slice(splitAt).trimStart();
+	}
+
+	if (lines.length < maxLines) lines.push(remaining);
+	else if (remaining.length > 0) lines[lines.length - 1] = appendEllipsis(lines[lines.length - 1] ?? "", width);
+
+	return lines;
 }
 
 function segment(text: string, width?: number): StyledSegment {
@@ -131,38 +171,66 @@ function renderPlanTodoWidget(theme: Theme, width: number, mode: PlanWidgetMode,
 
 	lines.push(`${border("├")}${border("─".repeat(rowWidth - 2))}${border("┤")}`);
 
+	const maxLinesPerStep = 2;
+	const maxItemLines = 12;
 	const stepDigits = Math.max(2, String(total).length);
 	const nextOpenStep = todos.find((todo) => !todo.completed)?.step;
-	for (const item of todos) {
+	let renderedItemLines = 0;
+	for (let index = 0; index < todos.length; index++) {
+		const item = todos[index];
+		if (!item) continue;
+		if (renderedItemLines >= maxItemLines) {
+			const remaining = total - index;
+			const summary = truncatePlain(`… ${remaining} more step${remaining === 1 ? "" : "s"}`, contentWidth);
+			lines.push(fullRow(summary, theme.fg("dim", summary)));
+			break;
+		}
+
 		const active = mode === "executing" && item.step === nextOpenStep;
 		const marker = item.completed ? "✓" : active ? "▶" : "○";
 		const markerStyle = item.completed ? "success" : active ? "accent" : mode === "pending" ? "warning" : "dim";
 		const step = `#${String(item.step).padStart(stepDigits, "0")}`;
 		const prefixWidth = marker.length + 1 + step.length + 1;
-		const text = truncatePlain(item.text, Math.max(0, contentWidth - prefixWidth));
-		const itemText = item.completed
-			? theme.fg("muted", theme.strikethrough(text))
-			: active
-				? theme.fg("accent", theme.bold(text))
-				: theme.fg(mode === "pending" ? "text" : "muted", text);
+		const textWidth = Math.max(0, contentWidth - prefixWidth);
+		const wrappedText = wrapPlain(item.text, textWidth, maxLinesPerStep);
 
-		lines.push(
-			row([
-				segment(theme.fg(markerStyle, marker), marker.length),
-				segment(" "),
-				segment(theme.fg(item.completed ? "muted" : "accent", step), step.length),
-				segment(" "),
-				segment(itemText, text.length),
-			]),
-		);
+		if (renderedItemLines + wrappedText.length > maxItemLines) {
+			const remaining = total - index;
+			const summary = truncatePlain(`… ${remaining} more step${remaining === 1 ? "" : "s"}`, contentWidth);
+			lines.push(fullRow(summary, theme.fg("dim", summary)));
+			break;
+		}
+
+		const styleItemText = (text: string): string =>
+			item.completed
+				? theme.fg("muted", theme.strikethrough(text))
+				: active
+					? theme.fg("accent", theme.bold(text))
+					: theme.fg(mode === "pending" ? "text" : "muted", text);
+
+		for (let lineIndex = 0; lineIndex < wrappedText.length; lineIndex++) {
+			const text = wrappedText[lineIndex] ?? "";
+			if (lineIndex === 0) {
+				lines.push(
+					row([
+						segment(theme.fg(markerStyle, marker), marker.length),
+						segment(" "),
+						segment(theme.fg(item.completed ? "muted" : "accent", step), step.length),
+						segment(" "),
+						segment(styleItemText(text), text.length),
+					]),
+				);
+			} else {
+				lines.push(
+					row([segment(" ".repeat(prefixWidth), prefixWidth), segment(styleItemText(text), text.length)]),
+				);
+			}
+			renderedItemLines++;
+		}
 	}
 
 	const footer = truncatePlain(
-		mode === "pending"
-			? "approve to execute • request revisions to keep planning"
-			: nextOpenStep
-				? `next up: step ${nextOpenStep} • plan_progress keeps this live`
-				: "all steps complete",
+		mode === "pending" ? "approve • chat more • reject" : nextOpenStep ? `next up: step ${nextOpenStep}` : "all steps complete",
 		contentWidth,
 	);
 	lines.push(`${border("├")}${border("─".repeat(rowWidth - 2))}${border("┤")}`);
@@ -245,19 +313,20 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 	function updateStatus(ctx: ExtensionContext): void {
 		if (!ctx.hasUI) return;
 
-		if (executionMode && todoItems.length > 0) {
-			const completed = todoItems.filter((todo) => todo.completed).length;
-			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("accent", `▰ ${completed}/${todoItems.length} plan`));
-		} else if (planModeEnabled && approvalState === "pending" && todoItems.length > 0) {
-			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("warning", `◇ review ${todoItems.length}`));
+		const hasTodoItems = todoItems.length > 0;
+		const executionHasOpenSteps = executionMode && hasTodoItems && todoItems.some((todo) => !todo.completed);
+		const reviewPending = approvalState === "pending" && hasTodoItems;
+
+		if (executionMode && hasTodoItems) {
+			ctx.ui.setStatus("plan-mode", undefined);
 		} else if (planModeEnabled) {
-			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("warning", "◇ plan"));
+			ctx.ui.setStatus("plan-mode", ctx.ui.theme.fg("warning", "planning"));
 		} else {
 			ctx.ui.setStatus("plan-mode", undefined);
 		}
 
-		if ((executionMode || approvalState === "pending") && todoItems.length > 0) {
-			const widgetMode: PlanWidgetMode = executionMode ? "executing" : "pending";
+		if (executionHasOpenSteps || reviewPending) {
+			const widgetMode: PlanWidgetMode = executionHasOpenSteps ? "executing" : "pending";
 			ctx.ui.setWidget("plan-todos", (_tui: unknown, theme: Theme) => ({
 				render(width: number): string[] {
 					return renderPlanTodoWidget(theme, width, widgetMode, todoItems);
@@ -304,6 +373,52 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		return `${completed}/${todoItems.length} complete`;
 	}
 
+	function finishApprovedPlan(ctx: ExtensionContext): TodoItem[] {
+		const completedTodos = todoItems.map((todo) => ({ ...todo }));
+		clearPlanState();
+		deactivateProgressTool();
+		updateStatus(ctx);
+		persistState();
+		pi.appendEntry("plan-mode-complete", { completedAt: Date.now(), todos: completedTodos });
+		if (ctx.hasUI) ctx.ui.notify(`Approved plan complete (${completedTodos.length} steps).`, "info");
+		return completedTodos;
+	}
+
+	function waitUntilIdle(ctx: ExtensionContext): Promise<void> {
+		if (ctx.isIdle()) return Promise.resolve();
+
+		return new Promise((resolve) => {
+			const poll = () => {
+				if (ctx.isIdle()) {
+					resolve();
+					return;
+				}
+				setTimeout(poll, 25);
+			};
+			setTimeout(poll, 0);
+		});
+	}
+
+	let idleMessageQueue: Promise<void> = Promise.resolve();
+
+	function sendMessageWhenIdle(
+		ctx: ExtensionContext,
+		message: PlanMessage,
+		options?: SendMessageOptions,
+		shouldSend: () => boolean = () => true,
+	): void {
+		const deliver = async () => {
+			await waitUntilIdle(ctx);
+			if (!shouldSend()) return;
+			pi.sendMessage(message, options);
+		};
+
+		idleMessageQueue = idleMessageQueue.then(deliver, deliver).catch((error) => {
+			const reason = error instanceof Error ? error.message : String(error);
+			if (ctx.hasUI) ctx.ui.notify(`Plan mode failed to send a queued message: ${reason}`, "error");
+		});
+	}
+
 	pi.registerTool({
 		name: PLAN_PROGRESS_TOOL,
 		label: "Plan Progress",
@@ -312,6 +427,8 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		promptGuidelines: [
 			"Use plan_progress while executing an approved plan to update the visible task list immediately after each step is truly complete.",
 			"Do not call plan_progress before the step has actually been implemented and verified.",
+			"plan_progress updates UI silently; do not narrate or quote its result to the user.",
+			"When the final approved plan step is complete, call plan_progress as the last tool call and then stop without running extra tools.",
 		],
 		parameters: Type.Object({
 			action: StringEnum(PLAN_PROGRESS_ACTIONS),
@@ -319,6 +436,27 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 			steps: Type.Optional(Type.Array(Type.Integer(), { description: "Multiple plan step numbers to update." })),
 			note: Type.Optional(Type.String({ description: "Optional short note about the progress update." })),
 		}),
+		renderCall(_args, theme) {
+			return {
+				render(width: number): string[] {
+					return [theme.fg("dim", truncatePlain("plan progress", width))];
+				},
+				invalidate(): void {},
+			};
+		},
+		renderResult(result, _options, theme) {
+			const text = result.content.find((block) => block.type === "text")?.text?.trim() ?? "";
+			const ignored =
+				typeof result.details === "object" && result.details !== null && "ignored" in result.details;
+
+			return {
+				render(width: number): string[] {
+					if (!ignored || text.length === 0) return [];
+					return [theme.fg("warning", truncatePlain(text, width))];
+				},
+				invalidate(): void {},
+			};
+		},
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			if (!executionMode || approvalState !== "approved" || todoItems.length === 0) {
 				return {
@@ -339,23 +477,24 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 				if (requestedSteps.length === 0) {
 					return {
 						content: [{ type: "text", text: "No valid plan step number was provided; plan progress was not changed." }],
-						details: { ignored: true, todos: todoItems },
+						details: { ignored: true, todos: todoItems.map((todo) => ({ ...todo })) },
 					};
 				}
 				changed = setTodoCompletion(requestedSteps, params.action === "complete");
 			}
 
-			updateStatus(ctx);
-			persistState();
+			const allComplete = todoItems.length > 0 && todoItems.every((todo) => todo.completed);
+			const summary = completionSummary();
+			const todos = allComplete ? finishApprovedPlan(ctx) : todoItems.map((todo) => ({ ...todo }));
+			if (!allComplete) {
+				updateStatus(ctx);
+				persistState();
+			}
 
 			return {
-				content: [
-					{
-						type: "text",
-						text: `Plan progress updated (${completionSummary()}).${changed === 0 ? " No visible changes." : ""}`,
-					},
-				],
-				details: { changed, todos: todoItems, note: params.note },
+				content: [{ type: "text", text: "" }],
+				details: { changed, summary, todos, note: params.note, allComplete },
+				terminate: allComplete,
 			};
 		},
 	});
@@ -406,14 +545,16 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 			? `Execute the user-approved plan. Start with step ${firstStep.step}: ${firstStep.text}`
 			: "Execute the user-approved plan.";
 
-		pi.sendMessage(
+		sendMessageWhenIdle(
+			ctx,
 			{
 				customType: "plan-mode-execute",
 				content: message,
 				display: true,
-				details: { approved: true, approvedPlanText, todos: todoItems },
+				details: { approved: true, approvedPlanText, todos: todoItems.map((todo) => ({ ...todo })) },
 			},
 			{ triggerTurn: true },
+			() => executionMode && approvalState === "approved",
 		);
 	}
 
@@ -431,14 +572,16 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		if (approvalState !== "approved") {
 			approvedPlanText = formatPlan(todoItems);
 			approvalState = "approved";
-			pi.sendMessage(
+			sendMessageWhenIdle(
+				ctx,
 				{
 					customType: "plan-approved",
 					content: `**Plan approved by user.**\n\n${approvedPlanText}`,
 					display: true,
-					details: { approved: true, approvedAt: Date.now(), todos: todoItems },
+					details: { approved: true, approvedAt: Date.now(), todos: todoItems.map((todo) => ({ ...todo })) },
 				},
 				{ triggerTurn: false },
+				() => approvalState === "approved",
 			);
 		}
 
@@ -459,13 +602,15 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		applyPlanTools(ctx);
 		updateStatus(ctx);
 		persistState();
-		pi.sendMessage(
+		sendMessageWhenIdle(
+			ctx,
 			{
 				customType: "plan-rejected",
-				content: `**Plan rejected by user.** Stay in read-only plan mode and produce a revised plan if needed.\n\nRejected plan:\n${rejectedPlan}`,
+				content: `**Plan rejected by user.** Read-only plan mode remains active if you want to discuss a new approach.\n\nRejected plan:\n${rejectedPlan}`,
 				display: true,
 			},
 			{ triggerTurn: false },
+			() => approvalState === "none" && planModeEnabled,
 		);
 	}
 
@@ -534,7 +679,7 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		if (executionMode && todoItems.length > 0 && approvalState === "approved") {
 			const remaining = todoItems.filter((todo) => !todo.completed).map((todo) => `${todo.step}. ${todo.text}`).join("\n");
 			return {
-				systemPrompt: `${event.systemPrompt}\n\n[EXECUTING USER-APPROVED PLAN]\nThe user explicitly approved this plan. Full tool access has been restored. Execute the remaining steps in order and do not expand scope beyond the approved plan without asking.\n\nApproved plan:\n${approvedPlanText ?? formatPlan(todoItems)}\n\nRemaining steps:\n${remaining}\n\nProgress tracking:\n- After fully completing and verifying step n, call the plan_progress tool with action \"complete\" and step n so the visible task list updates immediately.\n- Do not mark a step complete before it is actually done.\n- [DONE:n] text markers are only a fallback if plan_progress is unavailable.`,
+				systemPrompt: `${event.systemPrompt}\n\n[EXECUTING USER-APPROVED PLAN]\nThe user explicitly approved this plan. Full tool access has been restored. Execute the remaining steps in order and do not expand scope beyond the approved plan without asking.\n\nApproved plan:\n${approvedPlanText ?? formatPlan(todoItems)}\n\nRemaining steps:\n${remaining}\n\nProgress tracking:\n- After fully completing and verifying step n, call the plan_progress tool with action \"complete\" and step n so the visible task list updates immediately.\n- Do not mark a step complete before it is actually done.\n- After marking the final step complete, stop immediately; do not call any more tools or run extra checks.\n- [DONE:n] text markers are only a fallback if plan_progress is unavailable.`,
 			};
 		}
 	});
@@ -550,19 +695,7 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 	pi.on("agent_end", async (event, ctx) => {
 		if (executionMode && approvalState === "approved" && todoItems.length > 0) {
 			if (todoItems.every((todo) => todo.completed)) {
-				const completedList = todoItems.map((todo) => `✓ ${todo.text}`).join("\n");
-				pi.sendMessage(
-					{
-						customType: "plan-complete",
-						content: `**Approved plan complete!**\n\n${completedList}`,
-						display: true,
-					},
-					{ triggerTurn: false },
-				);
-				clearPlanState();
-				deactivateProgressTool();
-				updateStatus(ctx);
-				persistState();
+				finishApprovedPlan(ctx);
 			}
 			return;
 		}
@@ -585,33 +718,24 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		}
 
 		const todoListText = formatPlan(todoItems);
-		pi.sendMessage(
+		sendMessageWhenIdle(
+			ctx,
 			{
 				customType: "plan-approval-required",
 				content: `**Plan requires approval before execution.**\n\n${todoListText}`,
 				display: true,
-				details: { approvalState, todos: todoItems },
+				details: { approvalState, todos: todoItems.map((todo) => ({ ...todo })) },
 			},
 			{ triggerTurn: false },
+			() => planModeEnabled && approvalState === "pending" && todoItems.length > 0,
 		);
 
-		const choice = await ctx.ui.select("Plan approval required", [
-			"Approve and execute plan",
-			"Request revisions",
-			"Reject plan",
-			"Stay in read-only plan mode",
-			"Disable plan mode",
-		]);
+		const choice = await ctx.ui.select("Plan approval required", ["Approve", "Let's chat more about it", "Reject"]);
 
-		if (choice === "Approve and execute plan") {
+		if (choice === "Approve") {
 			await approveAndExecute(ctx);
-		} else if (choice === "Request revisions") {
-			const refinement = await ctx.ui.editor("Request plan revisions:", "Revise the plan to address: ");
-			if (refinement?.trim()) pi.sendUserMessage(refinement.trim());
-		} else if (choice === "Reject plan") {
+		} else if (choice === "Reject") {
 			rejectPendingPlan(ctx);
-		} else if (choice === "Disable plan mode") {
-			disablePlanMode(ctx);
 		} else {
 			persistState();
 		}
