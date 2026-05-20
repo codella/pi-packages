@@ -187,6 +187,14 @@ export function isSafeCommand(command: string): boolean {
 	});
 }
 
+function truncateStepText(text: string, maxLength = 90): string {
+	if (text.length <= maxLength) return text;
+
+	let truncated = text.slice(0, maxLength - 3).replace(/[\s:;,.\-–—]+$/g, "").trimEnd();
+	if (truncated.length === 0) truncated = text.slice(0, maxLength - 3).trimEnd();
+	return `${truncated}...`;
+}
+
 export function cleanStepText(text: string): string {
 	let cleaned = text
 		.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1")
@@ -194,15 +202,31 @@ export function cleanStepText(text: string): string {
 		.replace(/^\[[ x-]\]\s*/i, "")
 		.replace(/^(Use|Run|Execute|Create|Write|Read|Check|Verify|Update|Modify|Add|Remove|Delete|Install)\s+(the\s+)?/i, "")
 		.replace(/\s+/g, " ")
+		.replace(/\s+([:;,.])/g, "$1")
 		.trim();
+
+	cleaned = cleaned.replace(/[:;]+$/g, "").trimEnd();
 
 	if (cleaned.length > 0) {
 		cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 	}
-	if (cleaned.length > 90) {
-		cleaned = `${cleaned.slice(0, 87)}...`;
-	}
-	return cleaned;
+	return truncateStepText(cleaned);
+}
+
+function cleanContinuationText(text: string): string {
+	return text
+		.replace(/^\[[ x-]\]\s*/i, "")
+		.replace(/\s+\[[^\]]+\]\s*$/g, "")
+		.replace(/\*{1,2}$/g, "")
+		.trim();
+}
+
+function appendContinuation(base: string, continuation: string): string {
+	const cleanedContinuation = cleanContinuationText(continuation);
+	if (cleanedContinuation.length === 0 || cleanedContinuation.startsWith("`") || cleanedContinuation.startsWith("/")) return base;
+
+	const separator = /[:;]$/.test(base.trim()) ? " " : "; ";
+	return `${base.trimEnd()}${separator}${cleanedContinuation}`;
 }
 
 export function extractTodoItems(message: string): TodoItem[] {
@@ -210,28 +234,35 @@ export function extractTodoItems(message: string): TodoItem[] {
 	const planHeaderIndex = lines.findIndex((line) => /^\s*(?:#{1,6}\s*)?(?:\*\*)?Plan(?:\*\*)?:?\s*$/i.test(line));
 	if (planHeaderIndex === -1) return [];
 
-	const items: TodoItem[] = [];
+	const rawItems: string[] = [];
 	for (const line of lines.slice(planHeaderIndex + 1)) {
-		if (items.length > 0 && /^\s*#{1,6}\s+/.test(line)) break;
-		if (items.length > 0 && /^\s*(?:Notes?|Risks?|Questions?|Implementation)\s*:?\s*$/i.test(line)) break;
+		if (rawItems.length > 0 && /^\s*#{1,6}\s+/.test(line)) break;
+		if (rawItems.length > 0 && /^\s*(?:Notes?|Risks?|Questions?|Implementation)\s*:?\s*$/i.test(line)) break;
 
-		const match = line.match(/^\s*(?:[-*]\s*)?(\d+)[.)]\s+(.+)$/);
-		if (!match) continue;
+		const numberedMatch = line.match(/^\s*(?:[-*]\s*)?(\d+)[.)]\s+(.+)$/);
+		if (numberedMatch) {
+			const rawText = cleanContinuationText(numberedMatch[2]);
+			if (rawText.length > 5 && !rawText.startsWith("`") && !rawText.startsWith("/")) rawItems.push(rawText);
+			continue;
+		}
 
-		const rawText = match[2]
-			.replace(/\s+\[[^\]]+\]\s*$/g, "")
-			.replace(/\*{1,2}$/g, "")
-			.trim();
+		if (rawItems.length === 0) continue;
 
-		if (rawText.length <= 5 || rawText.startsWith("`") || rawText.startsWith("/")) continue;
+		const nestedBulletMatch = line.match(/^\s{2,}(?:[-*+]\s+|\d+[.)]\s+)(.+)$/);
+		if (nestedBulletMatch) {
+			rawItems[rawItems.length - 1] = appendContinuation(rawItems[rawItems.length - 1] ?? "", nestedBulletMatch[1]);
+			continue;
+		}
 
-		const cleaned = cleanStepText(rawText);
-		if (cleaned.length > 3) {
-			items.push({ step: items.length + 1, text: cleaned, completed: false });
+		const indentedContinuationMatch = line.match(/^\s{2,}(\S.+)$/);
+		if (indentedContinuationMatch) {
+			rawItems[rawItems.length - 1] = appendContinuation(rawItems[rawItems.length - 1] ?? "", indentedContinuationMatch[1]);
 		}
 	}
 
-	return items;
+	return rawItems
+		.map((rawText, index) => ({ step: index + 1, text: cleanStepText(rawText), completed: false }))
+		.filter((item) => item.text.length > 3);
 }
 
 export function extractDoneSteps(message: string): number[] {

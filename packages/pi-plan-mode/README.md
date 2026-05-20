@@ -36,6 +36,7 @@ Before approval:
 - Bash commands are allowlisted to inspection commands.
 - Mutating tools such as `edit` and `write` are blocked.
 - The assistant is instructed to produce a numbered `Plan:`.
+- Approval summaries flatten nested bullets and indented continuation lines into their parent numbered steps, avoiding dangling headings such as `Implement the UI:`.
 
 After approval:
 
