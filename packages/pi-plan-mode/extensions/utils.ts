@@ -187,14 +187,6 @@ export function isSafeCommand(command: string): boolean {
 	});
 }
 
-function truncateStepText(text: string, maxLength = 90): string {
-	if (text.length <= maxLength) return text;
-
-	let truncated = text.slice(0, maxLength - 3).replace(/[\s:;,.\-–—]+$/g, "").trimEnd();
-	if (truncated.length === 0) truncated = text.slice(0, maxLength - 3).trimEnd();
-	return `${truncated}...`;
-}
-
 export function cleanStepText(text: string): string {
 	let cleaned = text
 		.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1")
@@ -210,7 +202,7 @@ export function cleanStepText(text: string): string {
 	if (cleaned.length > 0) {
 		cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 	}
-	return truncateStepText(cleaned);
+	return cleaned;
 }
 
 function cleanContinuationText(text: string): string {

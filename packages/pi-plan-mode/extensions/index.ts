@@ -77,6 +77,66 @@ function formatPlan(todos: TodoItem[]): string {
 	return todos.map((item) => `${item.step}. ${item.text}`).join("\n");
 }
 
+type PlanCustomMessage = {
+	content?: string;
+};
+
+function stripInlineMarkdown(text: string): string {
+	return text
+		.replace(/\*\*([^*]+)\*\*/g, "$1")
+		.replace(/\*([^*]+)\*/g, "$1")
+		.replace(/`([^`]+)`/g, "$1");
+}
+
+function renderPlanMessageContent(content: string, theme: Theme, width: number): string[] {
+	const safeWidth = Math.max(16, width);
+	const lines: string[] = [];
+
+	for (const rawLine of content.split(/\r?\n/)) {
+		const plainLine = stripInlineMarkdown(rawLine).trim();
+		if (plainLine.length === 0) {
+			if (lines.length > 0 && lines[lines.length - 1] !== "") lines.push("");
+			continue;
+		}
+
+		const numberedMatch = plainLine.match(/^(\d+)[.)]\s+(.+)$/);
+		if (numberedMatch) {
+			const prefix = `${numberedMatch[1]}. `;
+			const textWidth = Math.max(1, safeWidth - prefix.length);
+			const wrapped = wrapPlain(numberedMatch[2] ?? "", textWidth, 1000);
+			for (let index = 0; index < wrapped.length; index++) {
+				const text = wrapped[index] ?? "";
+				const linePrefix = index === 0 ? prefix : " ".repeat(prefix.length);
+				lines.push(`${theme.fg("accent", linePrefix)}${theme.fg("text", text)}`);
+			}
+			continue;
+		}
+
+		const style = plainLine.startsWith("Plan approved")
+			? "success"
+			: plainLine.startsWith("Plan rejected") || plainLine.startsWith("Plan requires")
+				? "warning"
+				: plainLine.endsWith("plan:")
+					? "muted"
+					: "text";
+
+		for (const line of wrapPlain(plainLine, safeWidth, 1000)) {
+			lines.push(theme.fg(style, line));
+		}
+	}
+
+	return lines.length > 0 ? lines : [theme.fg("dim", "plan mode")];
+}
+
+function renderPlanModeMessage(message: PlanCustomMessage, _options: unknown, theme: Theme) {
+	return {
+		render(width: number): string[] {
+			return renderPlanMessageContent(message.content ?? "", theme, width);
+		},
+		invalidate(): void {},
+	};
+}
+
 type PlanWidgetMode = "pending" | "executing";
 
 type StyledSegment = {
@@ -171,8 +231,8 @@ function renderPlanTodoWidget(theme: Theme, width: number, mode: PlanWidgetMode,
 
 	lines.push(`${border("├")}${border("─".repeat(rowWidth - 2))}${border("┤")}`);
 
-	const maxLinesPerStep = 2;
-	const maxItemLines = 12;
+	const maxLinesPerStep = width >= 72 ? 4 : 3;
+	const maxItemLines = mode === "pending" ? 18 : 14;
 	const stepDigits = Math.max(2, String(total).length);
 	const nextOpenStep = todos.find((todo) => !todo.completed)?.step;
 	let renderedItemLines = 0;
@@ -253,6 +313,10 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		type: "boolean",
 		default: false,
 	});
+
+	for (const customType of ["plan-approval-required", "plan-approved", "plan-rejected"]) {
+		pi.registerMessageRenderer(customType, renderPlanModeMessage);
+	}
 
 	function availableToolNames(): Set<string> {
 		return new Set(pi.getAllTools().map((tool) => tool.name));
