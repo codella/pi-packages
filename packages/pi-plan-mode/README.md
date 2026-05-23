@@ -37,7 +37,7 @@ Before approval:
 - Mutating tools such as `edit` and `write` are blocked.
 - The assistant is instructed to produce a numbered `Plan:`.
 - Approval summaries flatten nested bullets and indented continuation lines into their parent numbered steps, avoiding dangling headings such as `Implement the UI:`.
-- Approval summaries preserve the full extracted step text and wrap long numbered items in the TUI instead of shortening them with ellipses.
+- Approval summaries and the progress widget preserve the extracted plan wording and wrap long numbered items in the TUI instead of shortening them with ellipses.
 
 After approval:
 

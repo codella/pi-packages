@@ -231,35 +231,16 @@ function renderPlanTodoWidget(theme: Theme, width: number, mode: PlanWidgetMode,
 
 	lines.push(`${border("├")}${border("─".repeat(rowWidth - 2))}${border("┤")}`);
 
-	const maxLinesPerStep = width >= 72 ? 4 : 3;
-	const maxItemLines = mode === "pending" ? 18 : 14;
 	const stepDigits = Math.max(2, String(total).length);
 	const nextOpenStep = todos.find((todo) => !todo.completed)?.step;
-	let renderedItemLines = 0;
-	for (let index = 0; index < todos.length; index++) {
-		const item = todos[index];
-		if (!item) continue;
-		if (renderedItemLines >= maxItemLines) {
-			const remaining = total - index;
-			const summary = truncatePlain(`… ${remaining} more step${remaining === 1 ? "" : "s"}`, contentWidth);
-			lines.push(fullRow(summary, theme.fg("dim", summary)));
-			break;
-		}
-
+	for (const item of todos) {
 		const active = mode === "executing" && item.step === nextOpenStep;
 		const marker = item.completed ? "✓" : active ? "▶" : "○";
 		const markerStyle = item.completed ? "success" : active ? "accent" : mode === "pending" ? "warning" : "dim";
 		const step = `#${String(item.step).padStart(stepDigits, "0")}`;
 		const prefixWidth = marker.length + 1 + step.length + 1;
 		const textWidth = Math.max(0, contentWidth - prefixWidth);
-		const wrappedText = wrapPlain(item.text, textWidth, maxLinesPerStep);
-
-		if (renderedItemLines + wrappedText.length > maxItemLines) {
-			const remaining = total - index;
-			const summary = truncatePlain(`… ${remaining} more step${remaining === 1 ? "" : "s"}`, contentWidth);
-			lines.push(fullRow(summary, theme.fg("dim", summary)));
-			break;
-		}
+		const wrappedText = wrapPlain(item.text, textWidth, Number.POSITIVE_INFINITY);
 
 		const styleItemText = (text: string): string =>
 			item.completed
@@ -285,7 +266,6 @@ function renderPlanTodoWidget(theme: Theme, width: number, mode: PlanWidgetMode,
 					row([segment(" ".repeat(prefixWidth), prefixWidth), segment(styleItemText(text), text.length)]),
 				);
 			}
-			renderedItemLines++;
 		}
 	}
 

@@ -188,29 +188,11 @@ export function isSafeCommand(command: string): boolean {
 }
 
 export function cleanStepText(text: string): string {
-	let cleaned = text
-		.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1")
-		.replace(/`([^`]+)`/g, "$1")
-		.replace(/^\[[ x-]\]\s*/i, "")
-		.replace(/^(Use|Run|Execute|Create|Write|Read|Check|Verify|Update|Modify|Add|Remove|Delete|Install)\s+(the\s+)?/i, "")
-		.replace(/\s+/g, " ")
-		.replace(/\s+([:;,.])/g, "$1")
-		.trim();
-
-	cleaned = cleaned.replace(/[:;]+$/g, "").trimEnd();
-
-	if (cleaned.length > 0) {
-		cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
-	}
-	return cleaned;
+	return text.trim();
 }
 
 function cleanContinuationText(text: string): string {
-	return text
-		.replace(/^\[[ x-]\]\s*/i, "")
-		.replace(/\s+\[[^\]]+\]\s*$/g, "")
-		.replace(/\*{1,2}$/g, "")
-		.trim();
+	return text.trim();
 }
 
 function appendContinuation(base: string, continuation: string): string {
