@@ -28,7 +28,7 @@ const READ_ONLY_TOOL_NAMES = new Set([
 const READ_ONLY_TOOL_PREFIXES = ["context7_"];
 const DEFAULT_RESTORE_TOOLS = ["read", "bash", "grep", "find", "ls", "edit", "write"];
 const PLAN_PROGRESS_TOOL = "plan_progress";
-const PLAN_PROGRESS_ACTIONS = ["complete", "uncomplete", "complete_all", "reset"] as const;
+const PLAN_PROGRESS_ACTIONS = ["complete", "uncomplete"] as const;
 
 type ApprovalState = "none" | "pending" | "approved";
 
@@ -470,20 +470,20 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		promptSnippet: "Mark approved plan steps complete or incomplete during plan execution",
 		promptGuidelines: [
 			"Use plan_progress while executing an approved plan to update the visible task list immediately after each step is truly complete.",
+			"Update exactly one step per plan_progress call; never batch multiple completed steps into one update.",
 			"Do not call plan_progress before the step has actually been implemented and verified.",
 			"plan_progress updates UI silently; do not narrate or quote its result to the user.",
 			"When the final approved plan step is complete, call plan_progress as the last tool call and then stop without running extra tools.",
 		],
 		parameters: Type.Object({
 			action: StringEnum(PLAN_PROGRESS_ACTIONS),
-			step: Type.Optional(Type.Integer({ description: "Single plan step number to update." })),
-			steps: Type.Optional(Type.Array(Type.Integer(), { description: "Multiple plan step numbers to update." })),
+			step: Type.Integer({ description: "The single plan step number to update." }),
 			note: Type.Optional(Type.String({ description: "Optional short note about the progress update." })),
 		}),
-		renderCall(_args, theme) {
+		renderCall() {
 			return {
-				render(width: number): string[] {
-					return [theme.fg("dim", truncatePlain("plan progress", width))];
+				render(): string[] {
+					return [];
 				},
 				invalidate(): void {},
 			};
@@ -509,23 +509,15 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 				};
 			}
 
-			let changed = 0;
-			if (params.action === "reset") {
-				changed = todoItems.filter((todo) => todo.completed).length;
-				for (const item of todoItems) item.completed = false;
-			} else if (params.action === "complete_all") {
-				changed = todoItems.filter((todo) => !todo.completed).length;
-				for (const item of todoItems) item.completed = true;
-			} else {
-				const requestedSteps = uniqueStepNumbers([params.step, ...(params.steps ?? [])]);
-				if (requestedSteps.length === 0) {
-					return {
-						content: [{ type: "text", text: "No valid plan step number was provided; plan progress was not changed." }],
-						details: { ignored: true, todos: todoItems.map((todo) => ({ ...todo })) },
-					};
-				}
-				changed = setTodoCompletion(requestedSteps, params.action === "complete");
+			const requestedSteps = uniqueStepNumbers([params.step]);
+			if (requestedSteps.length !== 1) {
+				return {
+					content: [{ type: "text", text: "Exactly one valid plan step number is required; plan progress was not changed." }],
+					details: { ignored: true, todos: todoItems.map((todo) => ({ ...todo })) },
+				};
 			}
+
+			const changed = setTodoCompletion(requestedSteps, params.action === "complete");
 
 			const allComplete = todoItems.length > 0 && todoItems.every((todo) => todo.completed);
 			const summary = completionSummary();
@@ -723,13 +715,18 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 		if (executionMode && todoItems.length > 0 && approvalState === "approved") {
 			const remaining = todoItems.filter((todo) => !todo.completed).map((todo) => `${todo.step}. ${todo.text}`).join("\n");
 			return {
-				systemPrompt: `${event.systemPrompt}\n\n[EXECUTING USER-APPROVED PLAN]\nThe user explicitly approved this plan. Full tool access has been restored. Execute the remaining steps in order and do not expand scope beyond the approved plan without asking.\n\nApproved plan:\n${approvedPlanText ?? formatPlan(todoItems)}\n\nRemaining steps:\n${remaining}\n\nProgress tracking:\n- After fully completing and verifying step n, call the plan_progress tool with action \"complete\" and step n so the visible task list updates immediately.\n- Do not mark a step complete before it is actually done.\n- After marking the final step complete, stop immediately; do not call any more tools or run extra checks.\n- [DONE:n] text markers are only a fallback if plan_progress is unavailable.`,
+				systemPrompt: `${event.systemPrompt}\n\n[EXECUTING USER-APPROVED PLAN]\nThe user explicitly approved this plan. Full tool access has been restored. Execute the remaining steps in order and do not expand scope beyond the approved plan without asking.\n\nApproved plan:\n${approvedPlanText ?? formatPlan(todoItems)}\n\nRemaining steps:\n${remaining}\n\nProgress tracking:\n- After fully completing and verifying step n, call the plan_progress tool with action \"complete\" and step n so the visible task list updates immediately.\n- Call plan_progress for exactly one completed step at a time, before starting the next plan step.\n- Do not batch multiple steps into one progress update.\n- Do not mark a step complete before it is actually done.\n- After marking the final step complete, stop immediately; do not call any more tools or run extra checks.`,
 			};
 		}
 	});
 
 	pi.on("turn_end", async (event, ctx) => {
 		if (!executionMode || approvalState !== "approved" || todoItems.length === 0 || !isAssistantMessage(event.message)) return;
+
+		if (pi.getActiveTools().includes(PLAN_PROGRESS_TOOL)) {
+			persistState();
+			return;
+		}
 
 		const changed = markCompletedSteps(getTextContent(event.message), todoItems);
 		if (changed > 0) updateStatus(ctx);
@@ -813,7 +810,7 @@ export default function planModeExtension(pi: ExtensionAPI): void {
 			toolsBeforePlan = pi.getActiveTools();
 		}
 
-		if (executionMode && approvalState === "approved" && todoItems.length > 0) {
+		if (executionMode && approvalState === "approved" && todoItems.length > 0 && !availableToolNames().has(PLAN_PROGRESS_TOOL)) {
 			let executeIndex = -1;
 			for (let i = entries.length - 1; i >= 0; i--) {
 				const entry = entries[i] as { type: string; customType?: string };

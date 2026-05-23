@@ -44,9 +44,9 @@ After approval:
 - Previous tools are restored.
 - The assistant executes only the approved plan.
 - A framed progress widget shows approval state, completion percentage, the active next step, and completed steps.
-- A temporary `plan_progress` tool silently updates the task list after each completed step without posting progress telemetry into the chat.
+- A temporary `plan_progress` tool silently updates the task list one step at a time after each completed step without posting progress telemetry into the chat.
 - The progress widget is cleared as soon as the approved plan is complete.
-- `[DONE:n]` markers are still recognized as a fallback.
+- `[DONE:n]` markers are still recognized only as a fallback when `plan_progress` is unavailable.
 
 ## License
 
