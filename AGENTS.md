@@ -11,7 +11,7 @@ This is a Pi package monorepo for packages published under the `@codella` npm sc
 - Themes use `pi-theme-*` names:
   - `@codella/pi-theme-cyberpunk`
   - `@codella/pi-theme-candy`
-- Extensions use `pi-*` names without an extra `pi-extension-*` prefix:
+- Prompt-template packages and extensions use `pi-*` names without an extra `pi-extension-*` prefix:
   - `@codella/pi-plan-mode`
   - `@codella/pi-mcp-support`
 
@@ -24,7 +24,7 @@ packages/
   pi-theme-candy/
     themes/
   pi-plan-mode/
-    extensions/
+    prompts/
   pi-mcp-support/
     extensions/
     examples/
@@ -74,10 +74,10 @@ Review tarball contents before publishing.
 
 Test Pi packages locally before publishing.
 
-Load extensions directly for a quick test:
+Load prompt templates/extensions directly for a quick test:
 
 ```bash
-pi --no-extensions -e ./packages/pi-plan-mode
+pi --no-prompt-templates -e ./packages/pi-plan-mode
 pi --no-extensions -e ./packages/pi-mcp-support
 ```
 

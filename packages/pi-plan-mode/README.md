@@ -1,8 +1,8 @@
 # @codella/pi-plan-mode
 
-Approval-gated plan mode extension for [Pi](https://pi.dev).
+Plan-mode prompt template for [Pi](https://pi.dev).
 
-Plan mode keeps Pi read-only while it explores and writes a numbered plan. The agent cannot execute mutating tools or commands until you explicitly approve the plan.
+This package adds a `/plan` prompt command. It does not gate tools or modify Pi runtime behavior; it expands to a planning prompt that asks the agent to inspect first, propose a numbered plan, and wait for approval before editing.
 
 ## Install
 
@@ -10,43 +10,31 @@ Plan mode keeps Pi read-only while it explores and writes a numbered plan. The a
 pi install npm:@codella/pi-plan-mode
 ```
 
-## Commands
+## Command
 
-- `/plan` - Toggle plan mode.
-- `/plan on` - Enable read-only plan mode.
-- `/plan off` - Disable plan mode and restore previous tools.
-
-## Shortcut
-
-- `ctrl+alt+p` - Toggle plan mode.
-
-## CLI flag
-
-Start Pi in plan mode:
-
-```bash
-pi --plan
+```text
+/plan [task]
 ```
 
-## How it works
+Example:
 
-Before approval:
+```text
+/plan refactor auth handling and update tests
+```
 
-- Active tools are restricted to read-only tools.
-- Bash commands are allowlisted to inspection commands.
-- Mutating tools such as `edit` and `write` are blocked.
-- The assistant is instructed to produce a numbered `Plan:`.
-- Approval summaries flatten nested bullets and indented continuation lines into their parent numbered steps, avoiding dangling headings such as `Implement the UI:`.
-- Approval summaries and the progress widget preserve the extracted plan wording and wrap long numbered items in the TUI instead of shortening them with ellipses.
+The expanded prompt tells the agent to:
 
-After approval:
+1. Summarize the goal.
+2. Inspect relevant files and project guidance.
+3. Propose a short numbered plan.
+4. List expected files to edit and validation commands to run.
+5. Stop and ask `Proceed?` before editing, installing dependencies, committing, or pushing.
 
-- Previous tools are restored.
-- The assistant executes only the approved plan.
-- A framed progress widget shows approval state, completion percentage, the active next step, and completed steps.
-- A temporary `plan_progress` tool silently updates the task list one step at a time after each completed step without posting progress telemetry into the chat.
-- The progress widget is cleared as soon as the approved plan is complete.
-- `[DONE:n]` markers are still recognized only as a fallback when `plan_progress` is unavailable.
+After approval, the agent should execute only the approved plan, ask before expanding scope, run validation, and summarize what changed.
+
+## Why prompt-only?
+
+A prompt template keeps plan mode lightweight and explicit. Use it when you want planning discipline without an extension that blocks tools or manages approval state.
 
 ## License
 

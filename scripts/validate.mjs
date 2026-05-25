@@ -81,13 +81,12 @@ function validatePackage(dir, expectedName, expectedPiKey) {
 
 validatePackage("pi-theme-cyberpunk", "@codella/pi-theme-cyberpunk", "themes");
 validatePackage("pi-theme-candy", "@codella/pi-theme-candy", "themes");
-validatePackage("pi-plan-mode", "@codella/pi-plan-mode", "extensions");
+validatePackage("pi-plan-mode", "@codella/pi-plan-mode", "prompts");
 const mcpPkg = validatePackage("pi-mcp-support", "@codella/pi-mcp-support", "extensions");
 assert(mcpPkg.dependencies?.["@modelcontextprotocol/sdk"], "pi-mcp-support: missing @modelcontextprotocol/sdk dependency");
 
 for (const path of [
-  "packages/pi-plan-mode/extensions/index.ts",
-  "packages/pi-plan-mode/extensions/utils.ts",
+  "packages/pi-plan-mode/prompts/plan.md",
   "packages/pi-mcp-support/extensions/index.ts",
   "packages/pi-mcp-support/examples/mcp.json",
 ]) {
