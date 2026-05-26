@@ -1,7 +1,7 @@
 {
   "name": "@codella/pi-theme-candy",
-  "version": "0.1.0",
-  "description": "Dark pastel candy theme for Pi.",
+  "version": "0.1.1",
+  "description": "Bright neon candy theme for Pi.",
   "type": "module",
   "license": "MIT",
   "keywords": [

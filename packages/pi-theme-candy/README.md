@@ -1,6 +1,6 @@
 # @codella/pi-theme-candy
 
-Dark pastel candy theme for [Pi](https://pi.dev): bubblegum pink, cotton-candy blue, mint, lavender, strawberry, lemon, and cream on a deep licorice background.
+Bright neon candy theme for [Pi](https://pi.dev): hot bubblegum pink, electric cotton-candy blue, glowing mint, vivid lavender, strawberry, lemon, and cream on a deep licorice background.
 
 ## Install
 
