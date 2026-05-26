@@ -1,13 +1,13 @@
-# @codella/pi-plan-mode
+# @codella/pi-prompt-plan
 
-Plan-mode prompt template for [Pi](https://pi.dev).
+Plan prompt template for [Pi](https://pi.dev).
 
 This package adds a `/plan` prompt command. It does not gate tools or modify Pi runtime behavior; it expands to a planning prompt that asks the agent to inspect first, propose a numbered plan, and wait for approval before editing.
 
 ## Install
 
 ```bash
-pi install npm:@codella/pi-plan-mode
+pi install npm:@codella/pi-prompt-plan
 ```
 
 ## Command
@@ -36,7 +36,7 @@ After approval, the agent should execute only the approved plan, ask before expa
 
 ## Why prompt-only?
 
-A prompt template keeps plan mode lightweight and explicit. Use it when you want planning discipline without an extension that blocks tools or manages approval state.
+A prompt template keeps plan workflows lightweight and explicit. Use it when you want planning discipline without an extension that blocks tools or manages approval state.
 
 ## License
 

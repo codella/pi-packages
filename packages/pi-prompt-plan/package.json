@@ -1,7 +1,7 @@
 {
-  "name": "@codella/pi-plan-mode",
+  "name": "@codella/pi-prompt-plan",
   "version": "0.2.2",
-  "description": "Prompt-template plan mode command for Pi.",
+  "description": "Prompt-template plan command for Pi.",
   "type": "module",
   "license": "MIT",
   "keywords": [
@@ -10,7 +10,7 @@
     "pi-coding-agent",
     "prompt",
     "prompt-template",
-    "plan-mode"
+    "plan"
   ],
   "files": [
     "prompts/",
@@ -23,12 +23,12 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/codella/pi-packages.git",
-    "directory": "packages/pi-plan-mode"
+    "directory": "packages/pi-prompt-plan"
   },
   "bugs": {
     "url": "https://github.com/codella/pi-packages/issues"
   },
-  "homepage": "https://github.com/codella/pi-packages/tree/main/packages/pi-plan-mode",
+  "homepage": "https://github.com/codella/pi-packages/tree/main/packages/pi-prompt-plan",
   "pi": {
     "prompts": [
       "./prompts"

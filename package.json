@@ -12,7 +12,7 @@
     "pack:dry-run": "npm pack --workspaces --dry-run",
     "pack:theme": "npm pack -w @codella/pi-theme-cyberpunk --dry-run",
     "pack:candy": "npm pack -w @codella/pi-theme-candy --dry-run",
-    "pack:plan": "npm pack -w @codella/pi-plan-mode --dry-run",
+    "pack:plan": "npm pack -w @codella/pi-prompt-plan --dry-run",
     "pack:mcp": "npm pack -w @codella/pi-mcp-support --dry-run"
   },
   "keywords": [

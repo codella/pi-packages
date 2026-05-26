@@ -8,11 +8,14 @@ This is a Pi package monorepo for packages published under the `@codella` npm sc
 
 ## Package naming
 
+Packages should use `pi-<type>-<name>` names where practical:
+
 - Themes use `pi-theme-*` names:
   - `@codella/pi-theme-cyberpunk`
   - `@codella/pi-theme-candy`
-- Prompt-template packages and extensions use `pi-*` names without an extra `pi-extension-*` prefix:
-  - `@codella/pi-plan-mode`
+- Prompt templates use `pi-prompt-*` names:
+  - `@codella/pi-prompt-plan`
+- Extensions currently include:
   - `@codella/pi-mcp-support`
 
 ## Layout
@@ -23,7 +26,7 @@ packages/
     themes/
   pi-theme-candy/
     themes/
-  pi-plan-mode/
+  pi-prompt-plan/
     prompts/
   pi-mcp-support/
     extensions/
@@ -77,7 +80,7 @@ Test Pi packages locally before publishing.
 Load prompt templates/extensions directly for a quick test:
 
 ```bash
-pi --no-prompt-templates -e ./packages/pi-plan-mode
+pi --no-prompt-templates -e ./packages/pi-prompt-plan
 pi --no-extensions -e ./packages/pi-mcp-support
 ```
 
@@ -91,7 +94,7 @@ pi --no-themes --theme ./packages/pi-theme-candy/themes/candy.json
 For a more realistic local install, use project settings:
 
 ```bash
-pi install ./packages/pi-plan-mode -l
+pi install ./packages/pi-prompt-plan -l
 pi install ./packages/pi-mcp-support -l
 pi install ./packages/pi-theme-cyberpunk -l
 pi install ./packages/pi-theme-candy -l
@@ -100,7 +103,7 @@ pi install ./packages/pi-theme-candy -l
 Remove local test installs when done:
 
 ```bash
-pi remove ./packages/pi-plan-mode -l
+pi remove ./packages/pi-prompt-plan -l
 pi remove ./packages/pi-mcp-support -l
 pi remove ./packages/pi-theme-cyberpunk -l
 pi remove ./packages/pi-theme-candy -l
