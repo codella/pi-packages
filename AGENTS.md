@@ -15,6 +15,7 @@ Packages should use `pi-<type>-<name>` names where practical:
   - `@codella/pi-theme-candy`
   - `@codella/pi-theme-christmas`
   - `@codella/pi-theme-halloween`
+  - `@codella/pi-theme-grayscale`
 - Prompt templates use `pi-prompt-*` names:
   - `@codella/pi-prompt-plan`
 - Compatibility packages may keep old names while pointing to renamed packages:
@@ -33,6 +34,8 @@ packages/
   pi-theme-christmas/
     themes/
   pi-theme-halloween/
+    themes/
+  pi-theme-grayscale/
     themes/
   pi-prompt-plan/
     prompts/
@@ -79,6 +82,7 @@ npm run pack:theme
 npm run pack:candy
 npm run pack:christmas
 npm run pack:halloween
+npm run pack:grayscale
 npm run pack:plan
 npm run pack:plan-mode
 npm run pack:mcp
@@ -104,6 +108,7 @@ pi --no-themes --theme ./packages/pi-theme-cyberpunk/themes/cyberpunk.json
 pi --no-themes --theme ./packages/pi-theme-candy/themes/candy.json
 pi --no-themes --theme ./packages/pi-theme-christmas/themes/christmas.json
 pi --no-themes --theme ./packages/pi-theme-halloween/themes/halloween.json
+pi --no-themes --theme ./packages/pi-theme-grayscale/themes/grayscale.json
 ```
 
 For a more realistic local install, use project settings:
@@ -115,6 +120,7 @@ pi install ./packages/pi-theme-cyberpunk -l
 pi install ./packages/pi-theme-candy -l
 pi install ./packages/pi-theme-christmas -l
 pi install ./packages/pi-theme-halloween -l
+pi install ./packages/pi-theme-grayscale -l
 ```
 
 Remove local test installs when done:
@@ -126,6 +132,7 @@ pi remove ./packages/pi-theme-cyberpunk -l
 pi remove ./packages/pi-theme-candy -l
 pi remove ./packages/pi-theme-christmas -l
 pi remove ./packages/pi-theme-halloween -l
+pi remove ./packages/pi-theme-grayscale -l
 ```
 
 ## Publishing safety

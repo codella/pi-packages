@@ -14,6 +14,7 @@
     "pack:candy": "npm pack -w @codella/pi-theme-candy --dry-run",
     "pack:christmas": "npm pack -w @codella/pi-theme-christmas --dry-run",
     "pack:halloween": "npm pack -w @codella/pi-theme-halloween --dry-run",
+    "pack:grayscale": "npm pack -w @codella/pi-theme-grayscale --dry-run",
     "pack:plan": "npm pack -w @codella/pi-prompt-plan --dry-run",
     "pack:plan-mode": "npm pack -w @codella/pi-plan-mode --dry-run",
     "pack:mcp": "npm pack -w @codella/pi-mcp-support --dry-run"

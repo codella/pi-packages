@@ -10,6 +10,7 @@ A monorepo of Pi packages published under the `@codella` npm scope.
 | `@codella/pi-theme-candy` | Theme | Bright neon candy TUI theme for Pi. |
 | `@codella/pi-theme-christmas` | Theme | 🎄 Festive Christmas TUI theme for Pi. |
 | `@codella/pi-theme-halloween` | Theme | 🎃 Spooky Halloween TUI theme for Pi. |
+| `@codella/pi-theme-grayscale` | Theme | Minimal monochrome grayscale TUI theme for Pi. |
 | `@codella/pi-prompt-plan` | Prompt template | `/plan` prompt command for explicit plan-first workflows. |
 | `@codella/pi-plan-mode` | Compatibility prompt template | Old package name for `@codella/pi-prompt-plan`. |
 | `@codella/pi-mcp-support` | Extension | Generic Model Context Protocol (MCP) support for Pi. |
@@ -23,6 +24,7 @@ pi install npm:@codella/pi-theme-cyberpunk
 pi install npm:@codella/pi-theme-candy
 pi install npm:@codella/pi-theme-christmas
 pi install npm:@codella/pi-theme-halloween
+pi install npm:@codella/pi-theme-grayscale
 pi install npm:@codella/pi-prompt-plan
 pi install npm:@codella/pi-mcp-support
 ```
@@ -50,6 +52,12 @@ After installing a theme, select it from `/settings` or set one of the theme nam
 ```json
 {
   "theme": "halloween"
+}
+```
+
+```json
+{
+  "theme": "grayscale"
 }
 ```
 
@@ -102,6 +110,7 @@ npm run pack:theme
 npm run pack:candy
 npm run pack:christmas
 npm run pack:halloween
+npm run pack:grayscale
 npm run pack:plan
 npm run pack:plan-mode
 npm run pack:mcp
@@ -116,6 +125,7 @@ npm publish -w @codella/pi-theme-cyberpunk --access public
 npm publish -w @codella/pi-theme-candy --access public
 npm publish -w @codella/pi-theme-christmas --access public
 npm publish -w @codella/pi-theme-halloween --access public
+npm publish -w @codella/pi-theme-grayscale --access public
 npm publish -w @codella/pi-prompt-plan --access public
 npm publish -w @codella/pi-plan-mode --access public
 npm publish -w @codella/pi-mcp-support --access public
