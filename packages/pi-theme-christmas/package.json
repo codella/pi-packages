@@ -1,0 +1,38 @@
+{
+  "name": "@codella/pi-theme-christmas",
+  "version": "0.1.0",
+  "description": "🎄 Festive Christmas theme for Pi.",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-coding-agent",
+    "pi-theme",
+    "theme",
+    "christmas",
+    "holiday"
+  ],
+  "files": [
+    "themes/",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codella/pi-packages.git",
+    "directory": "packages/pi-theme-christmas"
+  },
+  "bugs": {
+    "url": "https://github.com/codella/pi-packages/issues"
+  },
+  "homepage": "https://github.com/codella/pi-packages/tree/main/packages/pi-theme-christmas",
+  "pi": {
+    "themes": [
+      "./themes"
+    ]
+  }
+}

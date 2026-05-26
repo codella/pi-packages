@@ -81,6 +81,8 @@ function validatePackage(dir, expectedName, expectedPiKey) {
 
 validatePackage("pi-theme-cyberpunk", "@codella/pi-theme-cyberpunk", "themes");
 validatePackage("pi-theme-candy", "@codella/pi-theme-candy", "themes");
+validatePackage("pi-theme-christmas", "@codella/pi-theme-christmas", "themes");
+validatePackage("pi-theme-halloween", "@codella/pi-theme-halloween", "themes");
 validatePackage("pi-prompt-plan", "@codella/pi-prompt-plan", "prompts");
 validatePackage("pi-plan-mode", "@codella/pi-plan-mode", "prompts");
 const mcpPkg = validatePackage("pi-mcp-support", "@codella/pi-mcp-support", "extensions");
@@ -123,5 +125,7 @@ function validateThemeFile(path, expectedName) {
 
 validateThemeFile("packages/pi-theme-cyberpunk/themes/cyberpunk.json", "cyberpunk");
 validateThemeFile("packages/pi-theme-candy/themes/candy.json", "candy");
+validateThemeFile("packages/pi-theme-christmas/themes/christmas.json", "christmas");
+validateThemeFile("packages/pi-theme-halloween/themes/halloween.json", "halloween");
 
 console.log("Validation OK");

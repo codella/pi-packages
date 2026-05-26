@@ -13,6 +13,8 @@ Packages should use `pi-<type>-<name>` names where practical:
 - Themes use `pi-theme-*` names:
   - `@codella/pi-theme-cyberpunk`
   - `@codella/pi-theme-candy`
+  - `@codella/pi-theme-christmas`
+  - `@codella/pi-theme-halloween`
 - Prompt templates use `pi-prompt-*` names:
   - `@codella/pi-prompt-plan`
 - Compatibility packages may keep old names while pointing to renamed packages:
@@ -27,6 +29,10 @@ packages/
   pi-theme-cyberpunk/
     themes/
   pi-theme-candy/
+    themes/
+  pi-theme-christmas/
+    themes/
+  pi-theme-halloween/
     themes/
   pi-prompt-plan/
     prompts/
@@ -71,6 +77,8 @@ Or dry-run individual packages:
 ```bash
 npm run pack:theme
 npm run pack:candy
+npm run pack:christmas
+npm run pack:halloween
 npm run pack:plan
 npm run pack:plan-mode
 npm run pack:mcp
@@ -94,6 +102,8 @@ Load a theme directly for a quick test:
 ```bash
 pi --no-themes --theme ./packages/pi-theme-cyberpunk/themes/cyberpunk.json
 pi --no-themes --theme ./packages/pi-theme-candy/themes/candy.json
+pi --no-themes --theme ./packages/pi-theme-christmas/themes/christmas.json
+pi --no-themes --theme ./packages/pi-theme-halloween/themes/halloween.json
 ```
 
 For a more realistic local install, use project settings:
@@ -103,6 +113,8 @@ pi install ./packages/pi-prompt-plan -l
 pi install ./packages/pi-mcp-support -l
 pi install ./packages/pi-theme-cyberpunk -l
 pi install ./packages/pi-theme-candy -l
+pi install ./packages/pi-theme-christmas -l
+pi install ./packages/pi-theme-halloween -l
 ```
 
 Remove local test installs when done:
@@ -112,6 +124,8 @@ pi remove ./packages/pi-prompt-plan -l
 pi remove ./packages/pi-mcp-support -l
 pi remove ./packages/pi-theme-cyberpunk -l
 pi remove ./packages/pi-theme-candy -l
+pi remove ./packages/pi-theme-christmas -l
+pi remove ./packages/pi-theme-halloween -l
 ```
 
 ## Publishing safety
