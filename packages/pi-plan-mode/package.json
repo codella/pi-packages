@@ -1,6 +1,6 @@
 {
   "name": "@codella/pi-plan-mode",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Compatibility package renamed to @codella/pi-prompt-plan.",
   "type": "module",
   "license": "MIT",
@@ -25,12 +25,12 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/codella/pi-packages.git",
-    "directory": "packages/pi-plan-mode"
+    "directory": "packages/pi-prompt-plan"
   },
   "bugs": {
     "url": "https://github.com/codella/pi-packages/issues"
   },
-  "homepage": "https://github.com/codella/pi-packages/tree/main/packages/pi-plan-mode",
+  "homepage": "https://github.com/codella/pi-packages/tree/main/packages/pi-prompt-plan",
   "pi": {
     "prompts": [
       "./prompts"
