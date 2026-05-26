@@ -1,6 +1,6 @@
 {
   "name": "@codella/pi-plan-mode",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Prompt-template plan mode command for Pi.",
   "type": "module",
   "license": "MIT",
