@@ -28,7 +28,9 @@ The expanded prompt tells the agent to:
 2. Inspect relevant files and project guidance.
 3. Propose a short numbered plan.
 4. List expected files to edit and validation commands to run.
-5. Stop and ask `Proceed?` before editing, installing dependencies, committing, or pushing.
+5. End with exactly one final non-heading approval line: `👉 **Proceed?**`.
+
+Before approval, the agent should do absolutely nothing with side effects: only read-only inspection is allowed. It must not edit files, run mutating commands, install dependencies, commit, push, write files, update state, or otherwise change the system until approval.
 
 After approval, the agent should execute only the approved plan, ask before expanding scope, run validation, and summarize what changed.
 

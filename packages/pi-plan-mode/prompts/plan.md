@@ -9,9 +9,11 @@ Before making changes:
 2. Inspect the relevant files and project guidance first.
 3. Propose a short numbered plan.
 4. List the files you expect to edit and the validation commands you expect to run.
-5. Stop and ask: `Proceed?`
+5. End with exactly one final approval line: `👉 **Proceed?**`
 
-Do not edit files, run mutating commands, install dependencies, commit, or push until I approve the plan.
+Before approval, do absolutely nothing with side effects. Only read-only inspection is allowed. Do not edit files, run mutating commands, install dependencies, commit, push, write files, update state, or otherwise change the system until I approve the plan.
+
+The final approval line must not be a heading and must not be repeated.
 
 After I approve:
 - Execute only the approved plan.
