@@ -15,6 +15,8 @@ Packages should use `pi-<type>-<name>` names where practical:
   - `@codella/pi-theme-candy`
 - Prompt templates use `pi-prompt-*` names:
   - `@codella/pi-prompt-plan`
+- Compatibility packages may keep old names while pointing to renamed packages:
+  - `@codella/pi-plan-mode` -> `@codella/pi-prompt-plan`
 - Extensions currently include:
   - `@codella/pi-mcp-support`
 
@@ -27,6 +29,8 @@ packages/
   pi-theme-candy/
     themes/
   pi-prompt-plan/
+    prompts/
+  pi-plan-mode/     # compatibility package for pi-prompt-plan
     prompts/
   pi-mcp-support/
     extensions/
@@ -68,6 +72,7 @@ Or dry-run individual packages:
 npm run pack:theme
 npm run pack:candy
 npm run pack:plan
+npm run pack:plan-mode
 npm run pack:mcp
 ```
 

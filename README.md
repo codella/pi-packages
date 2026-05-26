@@ -9,6 +9,7 @@ A monorepo of Pi packages published under the `@codella` npm scope.
 | `@codella/pi-theme-cyberpunk` | Theme | Neon cyberpunk TUI theme for Pi. |
 | `@codella/pi-theme-candy` | Theme | Dark pastel candy TUI theme for Pi. |
 | `@codella/pi-prompt-plan` | Prompt template | `/plan` prompt command for explicit plan-first workflows. |
+| `@codella/pi-plan-mode` | Compatibility prompt template | Old package name for `@codella/pi-prompt-plan`. |
 | `@codella/pi-mcp-support` | Extension | Generic Model Context Protocol (MCP) support for Pi. |
 
 ## Install
@@ -84,6 +85,7 @@ Or one package at a time:
 npm run pack:theme
 npm run pack:candy
 npm run pack:plan
+npm run pack:plan-mode
 npm run pack:mcp
 ```
 
@@ -95,6 +97,7 @@ Publish one package at a time from this workspace after reviewing `npm pack --dr
 npm publish -w @codella/pi-theme-cyberpunk --access public
 npm publish -w @codella/pi-theme-candy --access public
 npm publish -w @codella/pi-prompt-plan --access public
+npm publish -w @codella/pi-plan-mode --access public
 npm publish -w @codella/pi-mcp-support --access public
 ```
 
