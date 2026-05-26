@@ -56,6 +56,7 @@ type ConnectedServer = {
 };
 
 const VERSION = "0.1.0";
+const DEFAULT_TOOL_LIST_LIMIT = 25;
 const connected = new Map<string, ConnectedServer>();
 const registeredToolNames = new Set<string>();
 
@@ -183,6 +184,88 @@ async function registerMcpServerTools(pi: ExtensionAPI, server: ConnectedServer)
   }
 }
 
+type NotifyLevel = "info" | "warning" | "error";
+
+type McpCommandArgs =
+  | { mode: "status" }
+  | { mode: "help" }
+  | { mode: "tools"; serverName?: string; showAll: boolean };
+
+function formatMcpHelp(): string {
+  return [
+    "MCP command usage:",
+    "  /mcp                    Show compact MCP status",
+    "  /mcp help               Show this help",
+    "  /mcp --help             Show this help",
+    "  /mcp tools              Show registered tool names, limited per server",
+    "  /mcp tools <server>     Show registered tool names for one server",
+    "  /mcp tools --all        Show all registered tool names",
+    "  /mcp tools <server> --all  Show all registered tool names for one server",
+  ].join("\n");
+}
+
+function parseMcpCommandArgs(args: string): McpCommandArgs {
+  const tokens = args.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return { mode: "status" };
+
+  const [command, ...rest] = tokens;
+  const normalized = command.toLowerCase();
+  if (normalized === "help" || normalized === "--help" || normalized === "-h") return { mode: "help" };
+
+  if (normalized === "tools") {
+    const showAll = rest.includes("--all") || rest.includes("-a");
+    const serverName = rest.find((token) => token !== "--all" && token !== "-a");
+    return { mode: "tools", serverName, showAll };
+  }
+
+  return { mode: "help" };
+}
+
+function formatMcpStatus(configFile: string | undefined): string {
+  const lines = [`MCP config: ${configFile ?? "none"}`];
+  if (connected.size === 0) {
+    lines.push("No MCP servers connected.");
+  } else {
+    lines.push(`Connected MCP servers: ${connected.size}`);
+    for (const server of connected.values()) {
+      lines.push(`- ${server.name}: ${server.toolNames.length} tool(s)`);
+    }
+  }
+  lines.push("", "Run /mcp help for options.");
+  return lines.join("\n");
+}
+
+function formatMcpTools(configFile: string | undefined, serverName: string | undefined, showAll: boolean): { text: string; level: NotifyLevel } {
+  const lines = [`MCP config: ${configFile ?? "none"}`];
+
+  if (connected.size === 0) {
+    lines.push("No MCP servers connected.");
+    return { text: lines.join("\n"), level: "warning" };
+  }
+
+  const servers = serverName ? [connected.get(serverName)].filter((server): server is ConnectedServer => Boolean(server)) : [...connected.values()];
+  if (serverName && servers.length === 0) {
+    lines.push(`MCP server not connected: ${serverName}`);
+    lines.push(`Available servers: ${[...connected.keys()].join(", ")}`);
+    return { text: lines.join("\n"), level: "warning" };
+  }
+
+  for (const server of servers) {
+    lines.push(`- ${server.name}: ${server.toolNames.length} tool(s)`);
+    const visibleToolNames = showAll ? server.toolNames : server.toolNames.slice(0, DEFAULT_TOOL_LIST_LIMIT);
+    for (const toolName of visibleToolNames) lines.push(`  - ${toolName}`);
+    if (server.toolNames.length === 0) lines.push("  (no tools registered)");
+
+    const remaining = server.toolNames.length - visibleToolNames.length;
+    if (remaining > 0) {
+      lines.push(`  ... ${remaining} more. Run /mcp tools ${server.name} --all to show all for this server.`);
+    }
+  }
+
+  if (!showAll) lines.push("", "Run /mcp tools --all to show every registered tool.");
+  return { text: lines.join("\n"), level: "info" };
+}
+
 export default async function (pi: ExtensionAPI) {
   const cwd = process.cwd();
   const { path, config } = await loadConfig(cwd);
@@ -200,18 +283,22 @@ export default async function (pi: ExtensionAPI) {
   }
 
   pi.registerCommand("mcp", {
-    description: "Show configured MCP servers and registered tools",
-    handler: async (_args, ctx) => {
-      const lines = [`MCP config: ${path ?? "none"}`];
-      if (connected.size === 0) {
-        lines.push("No MCP servers connected.");
-      } else {
-        for (const server of connected.values()) {
-          lines.push(`- ${server.name}: ${server.toolNames.length} tool(s)`);
-          for (const toolName of server.toolNames) lines.push(`  - ${toolName}`);
-        }
+    description: "Show MCP status; use /mcp help for options",
+    handler: async (args, ctx) => {
+      const parsed = parseMcpCommandArgs(args);
+
+      if (parsed.mode === "help") {
+        ctx.ui.notify(formatMcpHelp(), "info");
+        return;
       }
-      ctx.ui.notify(lines.join("\n"), connected.size === 0 ? "warning" : "info");
+
+      if (parsed.mode === "status") {
+        ctx.ui.notify(formatMcpStatus(path), connected.size === 0 ? "warning" : "info");
+        return;
+      }
+
+      const result = formatMcpTools(path, parsed.serverName, parsed.showAll);
+      ctx.ui.notify(result.text, result.level);
     },
   });
 

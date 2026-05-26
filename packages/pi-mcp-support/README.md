@@ -77,7 +77,12 @@ type ServerConfig = {
 
 ## Commands
 
-- `/mcp` - Show loaded config, connected MCP servers, and registered tools.
+- `/mcp` - Show loaded config and a compact connected-server/tool-count summary.
+- `/mcp help` or `/mcp --help` - Show command usage.
+- `/mcp tools` - Show registered tool names, limited to the first 25 tools per server.
+- `/mcp tools <server>` - Show registered tool names for one server.
+- `/mcp tools --all` - Show all registered tool names.
+- `/mcp tools <server> --all` - Show all registered tool names for one server.
 
 ## Built-in helper tools
 
